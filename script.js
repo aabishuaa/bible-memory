@@ -113,6 +113,64 @@ const SoundEffects = {
     }
 };
 
+// Text-to-Speech Service using Web Speech API
+const TextToSpeech = {
+    synthesis: null,
+    currentUtterance: null,
+
+    init() {
+        if (!this.synthesis && 'speechSynthesis' in window) {
+            this.synthesis = window.speechSynthesis;
+        }
+    },
+
+    speak(text, reference = '') {
+        this.init();
+
+        if (!this.synthesis) {
+            console.error('Text-to-speech not supported in this browser');
+            return false;
+        }
+
+        // Cancel any ongoing speech
+        this.stop();
+
+        // Create new utterance with the verse text
+        const textToSpeak = reference ? `${reference}. ${text}` : text;
+        this.currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
+
+        // Configure voice settings
+        this.currentUtterance.rate = 0.9; // Slightly slower for clarity
+        this.currentUtterance.pitch = 1.0;
+        this.currentUtterance.volume = 1.0;
+
+        // Try to use a high-quality English voice if available
+        const voices = this.synthesis.getVoices();
+        const englishVoice = voices.find(voice =>
+            voice.lang.startsWith('en') &&
+            (voice.name.includes('Google') || voice.name.includes('Microsoft') || voice.name.includes('Natural'))
+        ) || voices.find(voice => voice.lang.startsWith('en'));
+
+        if (englishVoice) {
+            this.currentUtterance.voice = englishVoice;
+        }
+
+        // Speak the text
+        this.synthesis.speak(this.currentUtterance);
+        return true;
+    },
+
+    stop() {
+        if (this.synthesis) {
+            this.synthesis.cancel();
+        }
+    },
+
+    isSpeaking() {
+        return this.synthesis && this.synthesis.speaking;
+    }
+};
+
 // Confetti Animation
 const Confetti = {
     create() {
@@ -305,6 +363,12 @@ const Icons = {
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+    ),
+    Speaker: () => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
         </svg>
     )
 };
@@ -585,6 +649,7 @@ function App() {
     const [isRecording, setIsRecording] = useState(false);
     const [blankedVerse, setBlankedVerse] = useState('');
     const [addSuccess, setAddSuccess] = useState(false);
+    const [isSpeaking, setIsSpeaking] = useState(false);
     const recognitionRef = useRef(null);
 
     useEffect(() => {
@@ -687,6 +752,28 @@ function App() {
                 console.error('Error adding verse:', error);
                 setError('Failed to add verse. Please try again.');
                 SoundEffects.playError();
+            }
+        }
+    };
+
+    const handleSpeakVerse = (verse) => {
+        if (isSpeaking && TextToSpeech.isSpeaking()) {
+            // Stop speaking if already speaking
+            TextToSpeech.stop();
+            setIsSpeaking(false);
+        } else {
+            // Start speaking the verse
+            const success = TextToSpeech.speak(verse.text, verse.reference);
+            if (success) {
+                setIsSpeaking(true);
+                // Monitor when speech ends
+                if (TextToSpeech.currentUtterance) {
+                    TextToSpeech.currentUtterance.onend = () => {
+                        setIsSpeaking(false);
+                    };
+                }
+            } else {
+                setError('Text-to-speech is not supported in your browser.');
             }
         }
     };
@@ -993,6 +1080,14 @@ function App() {
                                     </div>
                                 </div>
                                 <div className="verse-actions">
+                                    <button
+                                        className={`btn ${isSpeaking ? 'btn-primary' : 'btn-secondary'}`}
+                                        onClick={() => handleSpeakVerse(currentVerse)}
+                                        title={isSpeaking ? 'Stop reading' : 'Read verse aloud'}
+                                    >
+                                        <Icons.Speaker />
+                                        {isSpeaking ? 'Stop Reading' : 'Read Aloud'}
+                                    </button>
                                     <button className="btn btn-success" onClick={handleAddVerse}>
                                         <Icons.Heart filled={false} /> Add to My Verses
                                     </button>
