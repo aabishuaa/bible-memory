@@ -230,5 +230,98 @@ const FirestoreService = {
             console.error('Error clearing user data:', error);
             throw error;
         }
+    },
+
+    // Prayer Notes Methods
+    getPrayerCollection() {
+        if (!this.currentUserId || !db) {
+            throw new Error('User not authenticated or Firestore not initialized');
+        }
+        return db.collection('users').doc(this.currentUserId).collection('prayers');
+    },
+
+    async getPrayerNotes() {
+        try {
+            if (!this.currentUserId) {
+                return [];
+            }
+
+            const snapshot = await this.getPrayerCollection().orderBy('date', 'desc').get();
+            const prayers = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                prayers.push({
+                    id: doc.id,
+                    ...data,
+                    // Convert Firestore timestamp to ISO string if it exists
+                    date: data.date?.toDate?.()?.toISOString() || data.date || new Date().toISOString()
+                });
+            });
+            return prayers;
+        } catch (error) {
+            console.error('Error getting prayer notes:', error);
+            throw error;
+        }
+    },
+
+    async addPrayerNote(prayer) {
+        try {
+            const prayersRef = this.getPrayerCollection();
+
+            // Add new prayer note
+            const newPrayer = {
+                text: prayer.text,
+                date: firebase.firestore.FieldValue.serverTimestamp(),
+                answered: false
+            };
+
+            await prayersRef.add(newPrayer);
+            return await this.getPrayerNotes();
+        } catch (error) {
+            console.error('Error adding prayer note:', error);
+            throw error;
+        }
+    },
+
+    async updatePrayerNote(id, text) {
+        try {
+            const prayerRef = this.getPrayerCollection().doc(id);
+            await prayerRef.update({
+                text: text
+            });
+            return await this.getPrayerNotes();
+        } catch (error) {
+            console.error('Error updating prayer note:', error);
+            throw error;
+        }
+    },
+
+    async togglePrayerAnswered(id) {
+        try {
+            const prayerRef = this.getPrayerCollection().doc(id);
+            const prayerDoc = await prayerRef.get();
+
+            if (prayerDoc.exists) {
+                const currentAnswered = prayerDoc.data().answered || false;
+                await prayerRef.update({
+                    answered: !currentAnswered
+                });
+            }
+
+            return await this.getPrayerNotes();
+        } catch (error) {
+            console.error('Error toggling prayer answered:', error);
+            throw error;
+        }
+    },
+
+    async deletePrayerNote(id) {
+        try {
+            await this.getPrayerCollection().doc(id).delete();
+            return await this.getPrayerNotes();
+        } catch (error) {
+            console.error('Error deleting prayer note:', error);
+            throw error;
+        }
     }
 };

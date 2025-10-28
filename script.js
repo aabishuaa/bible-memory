@@ -370,6 +370,31 @@ const Icons = {
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
         </svg>
+    ),
+    Hands: () => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 5.5v7m0 0v7m0-7h7m-7 0H5"></path>
+            <path d="M18 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-12 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path>
+        </svg>
+    ),
+    Plus: () => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+    ),
+    Save: () => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+    ),
+    Link: () => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+        </svg>
     )
 };
 
@@ -469,7 +494,7 @@ const BIBLE_VERSIONS = {
 // Bible API service using API.Bible
 const BibleAPI = {
     API_KEY: 'd7c354dc4347405810e82c9f352f159e',
-    BIBLE_ID: 'de4e12af7f28f599-02', // Default: King James Version
+    BIBLE_ID: '06125adad2d5898a-01', // Default: New International Version
 
     async fetchVerse(reference, versionKey = 'KJV') {
         try {
@@ -686,8 +711,12 @@ function App() {
     const [addSuccess, setAddSuccess] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [selectedVersion, setSelectedVersion] = useState(
-        localStorage.getItem('preferredBibleVersion') || 'KJV'
+        localStorage.getItem('preferredBibleVersion') || 'NIV'
     );
+    const [prayerNotes, setPrayerNotes] = useState([]);
+    const [newPrayerNote, setNewPrayerNote] = useState('');
+    const [editingPrayerId, setEditingPrayerId] = useState(null);
+    const [editingPrayerText, setEditingPrayerText] = useState('');
     const recognitionRef = useRef(null);
 
     useEffect(() => {
@@ -703,13 +732,17 @@ function App() {
                 if (userData) {
                     // Set user in Firestore service
                     FirestoreService.setUser(userData.uid);
-                    // Load user's verses from Firestore
+                    // Load user's verses and prayer notes from Firestore
                     try {
                         const userVerses = await FirestoreService.getVerses();
                         setVerses(userVerses);
+
+                        // Load prayer notes
+                        const userPrayers = await FirestoreService.getPrayerNotes();
+                        setPrayerNotes(userPrayers);
                     } catch (error) {
-                        console.error('Error loading verses:', error);
-                        setError('Failed to load verses. Please refresh the page.');
+                        console.error('Error loading data:', error);
+                        setError('Failed to load data. Please refresh the page.');
                     }
                 }
                 setAuthLoading(false);
@@ -978,9 +1011,12 @@ function App() {
         try {
             const userVerses = await FirestoreService.getVerses();
             setVerses(userVerses);
+
+            const userPrayers = await FirestoreService.getPrayerNotes();
+            setPrayerNotes(userPrayers);
         } catch (error) {
-            console.error('Error loading verses:', error);
-            setError('Failed to load verses. Please refresh the page.');
+            console.error('Error loading data:', error);
+            setError('Failed to load data. Please refresh the page.');
         }
     };
 
@@ -990,6 +1026,7 @@ function App() {
             setUser(null);
             FirestoreService.setUser(null);
             setVerses([]);
+            setPrayerNotes([]);
         }
     };
 
@@ -1063,6 +1100,12 @@ function App() {
                         onClick={() => setActiveTab('practice')}
                     >
                         <Icons.Brain /> Practice
+                    </button>
+                    <button
+                        className={`tab ${activeTab === 'prayer' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('prayer')}
+                    >
+                        <Icons.Hands /> Prayer
                     </button>
                     <button
                         className={`tab ${activeTab === 'stats' ? 'active' : ''}`}
@@ -1404,6 +1447,271 @@ function App() {
                                     >
                                         <Icons.Shuffle /> Next Verse
                                     </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'prayer' && (
+                    <div>
+                        <h3 style={{ marginBottom: '20px', color: '#2c2416', textAlign: 'center' }}>
+                            Prayer Journal
+                        </h3>
+
+                        <div className="verse-display" style={{ marginBottom: '25px' }}>
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{
+                                    display: 'block',
+                                    marginBottom: '8px',
+                                    color: '#6b5d42',
+                                    fontWeight: '600',
+                                    fontSize: '0.95rem'
+                                }}>
+                                    New Prayer Request / Note
+                                </label>
+                                <textarea
+                                    className="practice-input"
+                                    rows="4"
+                                    placeholder="Write your prayer request or note here... You can reference verses like 'Philippians 4:6-7' to add them to your prayer."
+                                    value={newPrayerNote}
+                                    onChange={(e) => setNewPrayerNote(e.target.value)}
+                                    style={{ marginBottom: '10px' }}
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                <button
+                                    className="btn btn-success"
+                                    onClick={async () => {
+                                        if (newPrayerNote.trim()) {
+                                            const prayer = {
+                                                id: Date.now().toString(),
+                                                text: newPrayerNote,
+                                                date: new Date().toISOString(),
+                                                answered: false
+                                            };
+
+                                            try {
+                                                // Add to Firestore
+                                                if (typeof FirestoreService !== 'undefined' && FirestoreService.addPrayerNote) {
+                                                    const updatedPrayers = await FirestoreService.addPrayerNote(prayer);
+                                                    setPrayerNotes(updatedPrayers);
+                                                } else {
+                                                    // Fallback to local state if Firestore not ready
+                                                    setPrayerNotes([prayer, ...prayerNotes]);
+                                                }
+                                                setNewPrayerNote('');
+                                                SoundEffects.playAdd();
+                                            } catch (error) {
+                                                console.error('Error adding prayer note:', error);
+                                                setError('Failed to add prayer note. Please try again.');
+                                            }
+                                        }
+                                    }}
+                                    disabled={!newPrayerNote.trim()}
+                                >
+                                    <Icons.Plus /> Add Prayer
+                                </button>
+                                <span style={{ color: '#8b7355', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                                    Tip: Reference verses directly in your prayer notes!
+                                </span>
+                            </div>
+                        </div>
+
+                        {prayerNotes.length === 0 ? (
+                            <div className="empty-state">
+                                <Icons.Hands />
+                                <h3>No Prayer Notes Yet</h3>
+                                <p>Start your prayer journal by adding your first prayer request or note above</p>
+                            </div>
+                        ) : (
+                            <div>
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    marginBottom: '15px'
+                                }}>
+                                    <h4 style={{ color: '#2c2416', margin: 0 }}>My Prayers</h4>
+                                    <span style={{
+                                        fontSize: '0.85rem',
+                                        color: '#8b7355',
+                                        background: '#f5f1e8',
+                                        padding: '6px 12px',
+                                        borderRadius: '8px'
+                                    }}>
+                                        {prayerNotes.filter(p => p.answered).length} answered / {prayerNotes.length} total
+                                    </span>
+                                </div>
+
+                                <div className="verse-list">
+                                    {prayerNotes.map((prayer, index) => {
+                                        const isEditing = editingPrayerId === prayer.id;
+
+                                        // Extract verse references from prayer text (e.g., John 3:16, Psalm 23:1-3)
+                                        const versePattern = /\b([1-3]?\s?[A-Za-z]+)\s+(\d+):(\d+)(-\d+)?\b/g;
+                                        const textWithLinks = prayer.text.replace(
+                                            versePattern,
+                                            (match) => `<span class="verse-reference-link">${match}</span>`
+                                        );
+
+                                        return (
+                                            <div
+                                                key={prayer.id}
+                                                className={`verse-item ${prayer.answered ? 'memorized' : ''}`}
+                                                style={{ position: 'relative' }}
+                                            >
+                                                <div className="verse-item-header">
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                                                        <span style={{
+                                                            fontSize: '0.8rem',
+                                                            color: '#8b7355',
+                                                            background: prayer.answered ? '#e8f5e9' : '#f5f1e8',
+                                                            padding: '4px 10px',
+                                                            borderRadius: '6px',
+                                                            fontWeight: '500'
+                                                        }}>
+                                                            {new Date(prayer.date).toLocaleDateString()}
+                                                        </span>
+                                                        {prayer.answered && (
+                                                            <span style={{
+                                                                fontSize: '0.8rem',
+                                                                color: '#6b8e5f',
+                                                                background: '#e8f5e9',
+                                                                padding: '4px 10px',
+                                                                borderRadius: '6px',
+                                                                fontWeight: '600',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px'
+                                                            }}>
+                                                                <Icons.Check /> Answered
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="verse-item-actions">
+                                                        <button
+                                                            className={`icon-btn ${prayer.answered ? 'active' : ''}`}
+                                                            onClick={async () => {
+                                                                try {
+                                                                    if (typeof FirestoreService !== 'undefined' && FirestoreService.togglePrayerAnswered) {
+                                                                        const updatedPrayers = await FirestoreService.togglePrayerAnswered(prayer.id);
+                                                                        setPrayerNotes(updatedPrayers);
+                                                                    } else {
+                                                                        const updated = prayerNotes.map(p =>
+                                                                            p.id === prayer.id ? { ...p, answered: !p.answered } : p
+                                                                        );
+                                                                        setPrayerNotes(updated);
+                                                                    }
+                                                                    if (!prayer.answered) {
+                                                                        SoundEffects.playCelebration();
+                                                                    } else {
+                                                                        SoundEffects.playClick();
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error('Error toggling prayer status:', error);
+                                                                }
+                                                            }}
+                                                            title={prayer.answered ? 'Mark as unanswered' : 'Mark as answered'}
+                                                        >
+                                                            <Icons.Check />
+                                                        </button>
+                                                        {!isEditing && (
+                                                            <button
+                                                                className="icon-btn"
+                                                                onClick={() => {
+                                                                    setEditingPrayerId(prayer.id);
+                                                                    setEditingPrayerText(prayer.text);
+                                                                }}
+                                                                title="Edit prayer"
+                                                            >
+                                                                <Icons.Edit />
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            className="icon-btn"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    if (typeof FirestoreService !== 'undefined' && FirestoreService.deletePrayerNote) {
+                                                                        const updatedPrayers = await FirestoreService.deletePrayerNote(prayer.id);
+                                                                        setPrayerNotes(updatedPrayers);
+                                                                    } else {
+                                                                        setPrayerNotes(prayerNotes.filter(p => p.id !== prayer.id));
+                                                                    }
+                                                                    SoundEffects.playClick();
+                                                                } catch (error) {
+                                                                    console.error('Error deleting prayer note:', error);
+                                                                }
+                                                            }}
+                                                            title="Delete prayer"
+                                                        >
+                                                            <Icons.Trash />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {isEditing ? (
+                                                    <div style={{ marginTop: '10px' }}>
+                                                        <textarea
+                                                            className="practice-input"
+                                                            rows="3"
+                                                            value={editingPrayerText}
+                                                            onChange={(e) => setEditingPrayerText(e.target.value)}
+                                                            style={{ marginBottom: '10px' }}
+                                                        />
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <button
+                                                                className="btn btn-primary"
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        if (typeof FirestoreService !== 'undefined' && FirestoreService.updatePrayerNote) {
+                                                                            const updatedPrayers = await FirestoreService.updatePrayerNote(
+                                                                                prayer.id,
+                                                                                editingPrayerText
+                                                                            );
+                                                                            setPrayerNotes(updatedPrayers);
+                                                                        } else {
+                                                                            const updated = prayerNotes.map(p =>
+                                                                                p.id === prayer.id ? { ...p, text: editingPrayerText } : p
+                                                                            );
+                                                                            setPrayerNotes(updated);
+                                                                        }
+                                                                        setEditingPrayerId(null);
+                                                                        setEditingPrayerText('');
+                                                                        SoundEffects.playSuccess();
+                                                                    } catch (error) {
+                                                                        console.error('Error updating prayer note:', error);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <Icons.Save /> Save
+                                                            </button>
+                                                            <button
+                                                                className="btn btn-secondary"
+                                                                onClick={() => {
+                                                                    setEditingPrayerId(null);
+                                                                    setEditingPrayerText('');
+                                                                    SoundEffects.playClick();
+                                                                }}
+                                                            >
+                                                                <Icons.X /> Cancel
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className="verse-item-text"
+                                                        style={{
+                                                            whiteSpace: 'pre-wrap',
+                                                            lineHeight: '1.8'
+                                                        }}
+                                                        dangerouslySetInnerHTML={{ __html: textWithLinks }}
+                                                    />
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
