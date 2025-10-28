@@ -8,12 +8,13 @@
 // 5. Copy the firebaseConfig object values below
 
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyALDC6yTPDRiGA9FK-V_o1RhNGOxWyTV78",
+  authDomain: "bible-memory-f26bb.firebaseapp.com",
+  projectId: "bible-memory-f26bb",
+  storageBucket: "bible-memory-f26bb.firebasestorage.app",
+  messagingSenderId: "1037146731449",
+  appId: "1:1037146731449:web:4b4c78d31402f9a9f37c68",
+  measurementId: "G-GXPVB0WKZC"
 };
 
 // Initialize Firebase
