@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Scripture Memory - Bible Verse Memorization</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f5f1e8 0%, #e8dcc8 100%);
+            min-height: 100vh;
+            padding: 15px;
+            color: #2c2416;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: #2c2416;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(44, 36, 22, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+            color: #4a3f2a;
+        }
+
+        .header p {
+            font-size: 0.95rem;
+            opacity: 0.8;
+            font-weight: 400;
+            color: #6b5d42;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(44, 36, 22, 0.12);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #e8dcc8;
+            padding-bottom: 0;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tab {
+            background: none;
+            border: none;
+            padding: 12px 18px;
+            font-size: 0.9rem;
+            color: #8b7355;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            white-space: nowrap;
+            position: relative;
+            min-width: fit-content;
+        }
+
+        .tab:hover {
+            color: #4a3f2a;
+            background: rgba(232, 220, 200, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .tab.active {
+            color: #4a3f2a;
+            font-weight: 600;
+            background: rgba(232, 220, 200, 0.5);
+        }
+
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #8b6f47;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .input {
+            flex: 1;
+            min-width: 200px;
+            padding: 14px 18px;
+            border: 2px solid #e8dcc8;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: inherit;
+            background: white;
+            color: #2c2416;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: #8b6f47;
+            box-shadow: 0 0 0 3px rgba(139, 111, 71, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: 600;
+            font-family: inherit;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: #8b6f47;
+            color: white;
+            box-shadow: 0 4px 12px rgba(139, 111, 71, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: #6b5537;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(139, 111, 71, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f1e8;
+            color: #4a3f2a;
+            border: 2px solid #e8dcc8;
+        }
+
+        .btn-secondary:hover {
+            background: #e8dcc8;
+            border-color: #d4c4a8;
+        }
+
+        .btn-success {
+            background: #6b8e5f;
+            color: white;
+            box-shadow: 0 4px 12px rgba(107, 142, 95, 0.3);
+        }
+
+        .btn-success:hover {
+            background: #5a7850;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(107, 142, 95, 0.4);
+        }
+
+        .btn-danger {
+            background: #c85a54;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b44a44;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn.recording {
+            background: #c85a54;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 4px 12px rgba(200, 90, 84, 0.3); }
+            50% { box-shadow: 0 4px 20px rgba(200, 90, 84, 0.6); }
+        }
+
+        .verse-display {
+            background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+            padding: 28px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            border-left: 4px solid #8b6f47;
+            box-shadow: 0 4px 16px rgba(44, 36, 22, 0.08);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .verse-display:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(44, 36, 22, 0.12);
+        }
+
+        .verse-text {
+            font-size: 1.2rem;
+            line-height: 1.8;
+            color: #2c2416;
+            margin-bottom: 15px;
+            font-weight: 400;
+        }
+
+        .verse-reference {
+            font-size: 1rem;
+            color: #8b6f47;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .verse-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .verse-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .verse-item {
+            background: #faf8f3;
+            padding: 18px;
+            border-radius: 14px;
+            border-left: 4px solid #d4c4a8;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .verse-item:active {
+            transform: scale(0.99);
+        }
+
+        .verse-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 16px rgba(44, 36, 22, 0.1);
+            border-left-color: #8b6f47;
+        }
+
+        .verse-item.memorized {
+            border-left-color: #6b8e5f;
+            background: #f0f5ee;
+        }
+
+        .verse-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .verse-item-reference {
+            font-weight: 600;
+            color: #2c2416;
+            font-size: 0.95rem;
+        }
+
+        .verse-item-text {
+            color: #5a4d37;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .verse-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+            color: #8b7355;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+
+        .icon-btn:hover {
+            background: #e8dcc8;
+            color: #4a3f2a;
+            transform: scale(1.1);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.95);
+        }
+
+        .icon-btn.active {
+            color: #6b8e5f;
+            background: rgba(107, 142, 95, 0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #8b6f47 0%, #6b5537 100%);
+            padding: 25px 20px;
+            border-radius: 16px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 16px rgba(139, 111, 71, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(139, 111, 71, 0.4);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.95;
+            font-weight: 400;
+        }
+
+        .practice-mode {
+            text-align: center;
+        }
+
+        .practice-text {
+            font-size: 1.3rem;
+            line-height: 1.8;
+            color: #2c2416;
+            margin-bottom: 20px;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: #faf8f3;
+            border-radius: 12px;
+        }
+
+        .practice-input {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e8dcc8;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            margin-bottom: 15px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .practice-input:focus {
+            outline: none;
+            border-color: #8b6f47;
+            box-shadow: 0 0 0 3px rgba(139, 111, 71, 0.1);
+        }
+
+        .practice-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .mode-card {
+            background: #faf8f3;
+            padding: 20px;
+            border-radius: 14px;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            border-color: #d4c4a8;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(44, 36, 22, 0.12);
+        }
+
+        .mode-card.active {
+            border-color: #8b6f47;
+            background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+            box-shadow: 0 4px 16px rgba(139, 111, 71, 0.2);
+        }
+
+        .mode-card h4 {
+            color: #2c2416;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        .mode-card p {
+            color: #6b5d42;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: #8b7355;
+        }
+
+        .empty-state svg {
+            margin-bottom: 20px;
+            opacity: 0.4;
+        }
+
+        .empty-state h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: #5a4d37;
+        }
+
+        .empty-state p {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8b7355;
+        }
+
+        .spinner {
+            border: 3px solid #e8dcc8;
+            border-top: 3px solid #8b6f47;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fef2f2;
+            border-left: 4px solid #c85a54;
+            padding: 15px;
+            border-radius: 10px;
+            color: #991b1b;
+            margin-bottom: 20px;
+        }
+
+        .feedback {
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: 500;
+            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .feedback.success {
+            background: #f0f5ee;
+            color: #2d5a26;
+            border: 2px solid #9cbd92;
+            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1), successPulse 0.5s ease-in-out;
+        }
+
+        @keyframes successPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .feedback.error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 2px solid #fca5a5;
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .progress-bar-container {
+            background: #e8dcc8;
+            height: 35px;
+            border-radius: 18px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            box-shadow: inset 0 2px 4px rgba(44, 36, 22, 0.1);
+        }
+
+        .progress-bar {
+            background: linear-gradient(135deg, #6b8e5f 0%, #5a7850 100%);
+            height: 100%;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 2px 8px rgba(107, 142, 95, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.6rem;
+            }
+
+            .header p {
+                font-size: 0.85rem;
+            }
+
+            .card {
+                padding: 18px;
+            }
+
+            .tabs {
+                gap: 5px;
+            }
+
+            .tab {
+                padding: 10px 14px;
+                font-size: 0.85rem;
+            }
+
+            .verse-text {
+                font-size: 1.1rem;
+            }
+
+            .stat-card {
+                padding: 20px 15px;
+            }
+
+            .stat-value {
+                font-size: 2rem;
+            }
+
+            .btn {
+                padding: 12px 20px;
+                font-size: 0.95rem;
+            }
+
+            .search-box {
+                flex-direction: column;
+            }
+
+            .input {
+                min-width: 100%;
+            }
+
+            .mode-selector {
+                grid-template-columns: 1fr;
+            }
+
+            .practice-buttons {
+                flex-direction: column;
+            }
+
+            .practice-buttons .btn {
+                width: 100%;
+            }
+
+            .voice-controls {
+                flex-direction: column;
+            }
+
+            .voice-controls .btn {
+                width: 100%;
+            }
+        }
+
+        @media (hover: none) {
+            .btn:hover {
+                transform: none;
+            }
+            
+            .verse-item:hover {
+                transform: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef } = React;
+
+        // Icon components
+        const Icons = {
+            Search: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+            ),
+            Book: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+            ),
+            Heart: ({ filled }) => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+            ),
+            BarChart: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="12" y1="20" x2="12" y2="10"></line>
+                    <line x1="18" y1="20" x2="18" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="16"></line>
+                </svg>
+            ),
+            Brain: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"></path>
+                    <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"></path>
+                </svg>
+            ),
+            Trash: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18"></path>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+            ),
+            Check: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            ),
+            X: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            ),
+            Eye: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            ),
+            EyeOff: () => (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
+                    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path>
+                    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path>
+                    <line x1="2" y1="2" x2="22" y2="22"></line>
+                </svg>
+            ),
+            BookOpen: () => (
+                <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                </svg>
+            ),
+            Mic: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="22"></line>
+                </svg>
+            ),
+            MicOff: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="2" y1="2" x2="22" y2="22"></line>
+                    <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"></path>
+                    <path d="M5 10v2a7 7 0 0 0 12 5"></path>
+                    <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"></path>
+                    <path d="M9 9v3a3 3 0 0 0 5.12 2.12"></path>
+                    <line x1="12" y1="19" x2="12" y2="22"></line>
+                </svg>
+            ),
+            Shuffle: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="16 3 21 3 21 8"></polyline>
+                    <line x1="4" y1="20" x2="21" y2="3"></line>
+                    <polyline points="21 16 21 21 16 21"></polyline>
+                    <line x1="15" y1="15" x2="21" y2="21"></line>
+                    <line x1="4" y1="4" x2="9" y2="9"></line>
+                </svg>
+            ),
+            Type: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="4 7 4 4 20 4 20 7"></polyline>
+                    <line x1="9" y1="20" x2="15" y2="20"></line>
+                    <line x1="12" y1="4" x2="12" y2="20"></line>
+                </svg>
+            ),
+            Edit: () => (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+            )
+        };
+
+        // Bible API service using API.Bible
+        const BibleAPI = {
+            API_KEY: 'd7c354dc4347405810e82c9f352f159e',
+            BIBLE_IDS: {
+                'KJV': 'de4e12af7f28f599-02', // King James Version
+                'NIV': '06125adad2d5898a-01'  // New International Version (English)
+            },
+            
+            async fetchVerse(reference, version = 'KJV') {
+                try {
+                    const bibleId = this.BIBLE_IDS[version];
+                    
+                    // API.Bible expects passages in format like "JHN.3.16" or "PSA.23"
+                    // Convert user input like "John 3:16" to API format
+                    const passageId = this.convertReferenceToPassageId(reference);
+                    
+                    const url = `https://api.scripture.api.bible/v1/bibles/${bibleId}/passages/${passageId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=false&include-verse-spans=false`;
+                    
+                    const response = await fetch(url, {
+                        headers: {
+                            'api-key': this.API_KEY
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        // Fallback to search if direct passage lookup fails
+                        return await this.searchVerse(reference, version);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    return {
+                        reference: data.data.reference,
+                        text: data.data.content.trim(),
+                        translation: version,
+                        version: version
+                    };
+                } catch (error) {
+                    console.error('API.Bible error:', error);
+                    throw new Error('Unable to fetch verse. Please check the reference and try again.');
+                }
+            },
+            
+            async searchVerse(reference, version = 'KJV') {
+                try {
+                    const bibleId = this.BIBLE_IDS[version];
+                    const url = `https://api.scripture.api.bible/v1/bibles/${bibleId}/search?query=${encodeURIComponent(reference)}&limit=1`;
+                    
+                    const response = await fetch(url, {
+                        headers: {
+                            'api-key': this.API_KEY
+                        }
+                    });
+                    
+                    if (!response.ok) throw new Error('Verse not found');
+                    
+                    const data = await response.json();
+                    
+                    if (!data.data.verses || data.data.verses.length === 0) {
+                        throw new Error('Verse not found');
+                    }
+                    
+                    const verse = data.data.verses[0];
+                    
+                    // Fetch the full verse content
+                    const verseUrl = `https://api.scripture.api.bible/v1/bibles/${bibleId}/verses/${verse.id}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=false`;
+                    
+                    const verseResponse = await fetch(verseUrl, {
+                        headers: {
+                            'api-key': this.API_KEY
+                        }
+                    });
+                    
+                    if (!verseResponse.ok) throw new Error('Unable to fetch verse content');
+                    
+                    const verseData = await verseResponse.json();
+                    
+                    return {
+                        reference: verseData.data.reference,
+                        text: verseData.data.content.trim(),
+                        translation: version,
+                        version: version
+                    };
+                } catch (error) {
+                    console.error('Search error:', error);
+                    throw new Error('Unable to fetch verse. Please check the reference and try again.');
+                }
+            },
+            
+            convertReferenceToPassageId(reference) {
+                // Map common book names to API.Bible abbreviations
+                const bookMap = {
+                    'genesis': 'GEN', 'gen': 'GEN',
+                    'exodus': 'EXO', 'exo': 'EXO', 'exod': 'EXO',
+                    'leviticus': 'LEV', 'lev': 'LEV',
+                    'numbers': 'NUM', 'num': 'NUM',
+                    'deuteronomy': 'DEU', 'deut': 'DEU', 'deu': 'DEU',
+                    'joshua': 'JOS', 'josh': 'JOS', 'jos': 'JOS',
+                    'judges': 'JDG', 'judg': 'JDG', 'jdg': 'JDG',
+                    'ruth': 'RUT', 'rut': 'RUT',
+                    '1 samuel': '1SA', '1samuel': '1SA', '1sam': '1SA', '1 sam': '1SA',
+                    '2 samuel': '2SA', '2samuel': '2SA', '2sam': '2SA', '2 sam': '2SA',
+                    '1 kings': '1KI', '1kings': '1KI', '1ki': '1KI',
+                    '2 kings': '2KI', '2kings': '2KI', '2ki': '2KI',
+                    '1 chronicles': '1CH', '1chronicles': '1CH', '1chr': '1CH',
+                    '2 chronicles': '2CH', '2chronicles': '2CH', '2chr': '2CH',
+                    'ezra': 'EZR', 'ezr': 'EZR',
+                    'nehemiah': 'NEH', 'neh': 'NEH',
+                    'esther': 'EST', 'est': 'EST',
+                    'job': 'JOB',
+                    'psalm': 'PSA', 'psalms': 'PSA', 'psa': 'PSA', 'ps': 'PSA',
+                    'proverbs': 'PRO', 'prov': 'PRO', 'pro': 'PRO',
+                    'ecclesiastes': 'ECC', 'eccl': 'ECC', 'ecc': 'ECC',
+                    'song of solomon': 'SNG', 'song': 'SNG', 'sos': 'SNG',
+                    'isaiah': 'ISA', 'isa': 'ISA',
+                    'jeremiah': 'JER', 'jer': 'JER',
+                    'lamentations': 'LAM', 'lam': 'LAM',
+                    'ezekiel': 'EZK', 'ezek': 'EZK', 'ezk': 'EZK',
+                    'daniel': 'DAN', 'dan': 'DAN',
+                    'hosea': 'HOS', 'hos': 'HOS',
+                    'joel': 'JOL', 'joel': 'JOL',
+                    'amos': 'AMO', 'amo': 'AMO',
+                    'obadiah': 'OBA', 'obad': 'OBA', 'oba': 'OBA',
+                    'jonah': 'JON', 'jon': 'JON',
+                    'micah': 'MIC', 'mic': 'MIC',
+                    'nahum': 'NAM', 'nah': 'NAM', 'nam': 'NAM',
+                    'habakkuk': 'HAB', 'hab': 'HAB',
+                    'zephaniah': 'ZEP', 'zeph': 'ZEP', 'zep': 'ZEP',
+                    'haggai': 'HAG', 'hag': 'HAG',
+                    'zechariah': 'ZEC', 'zech': 'ZEC', 'zec': 'ZEC',
+                    'malachi': 'MAL', 'mal': 'MAL',
+                    'matthew': 'MAT', 'matt': 'MAT', 'mat': 'MAT', 'mt': 'MAT',
+                    'mark': 'MRK', 'mrk': 'MRK', 'mk': 'MRK',
+                    'luke': 'LUK', 'luk': 'LUK', 'lk': 'LUK',
+                    'john': 'JHN', 'jhn': 'JHN', 'jn': 'JHN',
+                    'acts': 'ACT', 'act': 'ACT',
+                    'romans': 'ROM', 'rom': 'ROM',
+                    '1 corinthians': '1CO', '1corinthians': '1CO', '1cor': '1CO', '1 cor': '1CO',
+                    '2 corinthians': '2CO', '2corinthians': '2CO', '2cor': '2CO', '2 cor': '2CO',
+                    'galatians': 'GAL', 'gal': 'GAL',
+                    'ephesians': 'EPH', 'eph': 'EPH',
+                    'philippians': 'PHP', 'phil': 'PHP', 'php': 'PHP',
+                    'colossians': 'COL', 'col': 'COL',
+                    '1 thessalonians': '1TH', '1thessalonians': '1TH', '1thess': '1TH', '1 thess': '1TH',
+                    '2 thessalonians': '2TH', '2thessalonians': '2TH', '2thess': '2TH', '2 thess': '2TH',
+                    '1 timothy': '1TI', '1timothy': '1TI', '1tim': '1TI', '1 tim': '1TI',
+                    '2 timothy': '2TI', '2timothy': '2TI', '2tim': '2TI', '2 tim': '2TI',
+                    'titus': 'TIT', 'tit': 'TIT',
+                    'philemon': 'PHM', 'phlm': 'PHM', 'phm': 'PHM',
+                    'hebrews': 'HEB', 'heb': 'HEB',
+                    'james': 'JAS', 'jas': 'JAS', 'jas': 'JAS',
+                    '1 peter': '1PE', '1peter': '1PE', '1pet': '1PE', '1 pet': '1PE',
+                    '2 peter': '2PE', '2peter': '2PE', '2pet': '2PE', '2 pet': '2PE',
+                    '1 john': '1JN', '1john': '1JN', '1jn': '1JN',
+                    '2 john': '2JN', '2john': '2JN', '2jn': '2JN',
+                    '3 john': '3JN', '3john': '3JN', '3jn': '3JN',
+                    'jude': 'JUD', 'jud': 'JUD',
+                    'revelation': 'REV', 'rev': 'REV'
+                };
+                
+                // Parse reference like "John 3:16" or "Psalm 23"
+                const parts = reference.toLowerCase().trim().match(/^([\d\s]*[a-z]+)\s*(\d+)(?::(\d+)(?:-(\d+))?)?$/i);
+                
+                if (!parts) {
+                    // If parsing fails, return as-is and let search handle it
+                    return reference;
+                }
+                
+                const bookName = parts[1].trim().replace(/\s+/g, ' ');
+                const chapter = parts[2];
+                const verseStart = parts[3];
+                const verseEnd = parts[4];
+                
+                const bookCode = bookMap[bookName];
+                if (!bookCode) {
+                    return reference; // Return original if book not found
+                }
+                
+                // Format: BOOK.CHAPTER.VERSE or BOOK.CHAPTER.VERSE-BOOK.CHAPTER.VERSE
+                if (verseStart) {
+                    if (verseEnd) {
+                        return `${bookCode}.${chapter}.${verseStart}-${bookCode}.${chapter}.${verseEnd}`;
+                    }
+                    return `${bookCode}.${chapter}.${verseStart}`;
+                }
+                
+                // Just chapter
+                return `${bookCode}.${chapter}`;
+            }
+        };
+
+        // Local storage service
+        const StorageService = {
+            VERSES_KEY: 'bible_verses',
+            
+            getVerses() {
+                const verses = localStorage.getItem(this.VERSES_KEY);
+                return verses ? JSON.parse(verses) : [];
+            },
+            
+            saveVerses(verses) {
+                localStorage.setItem(this.VERSES_KEY, JSON.stringify(verses));
+            },
+            
+            addVerse(verse) {
+                const verses = this.getVerses();
+                const exists = verses.find(v => v.reference === verse.reference);
+                if (!exists) {
+                    verses.push({
+                        ...verse,
+                        id: Date.now(),
+                        memorized: false,
+                        dateAdded: new Date().toISOString()
+                    });
+                    this.saveVerses(verses);
+                }
+                return verses;
+            },
+            
+            toggleMemorized(id) {
+                const verses = this.getVerses();
+                const verse = verses.find(v => v.id === id);
+                if (verse) {
+                    verse.memorized = !verse.memorized;
+                    this.saveVerses(verses);
+                }
+                return verses;
+            },
+            
+            deleteVerse(id) {
+                const verses = this.getVerses().filter(v => v.id !== id);
+                this.saveVerses(verses);
+                return verses;
+            }
+        };
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('search');
+            const [searchQuery, setSearchQuery] = useState('');
+            const [currentVerse, setCurrentVerse] = useState(null);
+            const [verses, setVerses] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+            const [practiceMode, setPracticeMode] = useState('recite'); // recite, identify, complete
+            const [practiceVerse, setPracticeVerse] = useState(null);
+            const [showVerseText, setShowVerseText] = useState(false);
+            const [practiceInput, setPracticeInput] = useState('');
+            const [feedback, setFeedback] = useState(null);
+            const [isRecording, setIsRecording] = useState(false);
+            const [blankedVerse, setBlankedVerse] = useState('');
+            const [bibleVersion, setBibleVersion] = useState('KJV'); // KJV or NIV
+            const [addSuccess, setAddSuccess] = useState(false);
+            const recognitionRef = useRef(null);
+
+            useEffect(() => {
+                setVerses(StorageService.getVerses());
+                
+                // Initialize Speech Recognition
+                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    recognitionRef.current = new SpeechRecognition();
+                    recognitionRef.current.continuous = true;
+                    recognitionRef.current.interimResults = true;
+                    
+                    recognitionRef.current.onresult = (event) => {
+                        let interimTranscript = '';
+                        let finalTranscript = '';
+                        
+                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                            const transcript = event.results[i][0].transcript;
+                            if (event.results[i].isFinal) {
+                                finalTranscript += transcript + ' ';
+                            } else {
+                                interimTranscript += transcript;
+                            }
+                        }
+                        
+                        setPracticeInput(prev => prev + finalTranscript);
+                    };
+                    
+                    recognitionRef.current.onerror = (event) => {
+                        console.error('Speech recognition error:', event.error);
+                        setIsRecording(false);
+                    };
+                    
+                    recognitionRef.current.onend = () => {
+                        setIsRecording(false);
+                    };
+                }
+            }, []);
+
+            const handleSearch = async () => {
+                if (!searchQuery.trim()) return;
+                
+                setLoading(true);
+                setError('');
+                setAddSuccess(false);
+                try {
+                    const verse = await BibleAPI.fetchVerse(searchQuery, bibleVersion);
+                    setCurrentVerse(verse);
+                } catch (err) {
+                    setError(err.message);
+                    setCurrentVerse(null);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleAddVerse = () => {
+                if (currentVerse) {
+                    const updatedVerses = StorageService.addVerse(currentVerse);
+                    setVerses(updatedVerses);
+                    setError('');
+                    setAddSuccess(true);
+                    setTimeout(() => setAddSuccess(false), 3000);
+                }
+            };
+
+            const handleToggleMemorized = (id) => {
+                const updatedVerses = StorageService.toggleMemorized(id);
+                setVerses(updatedVerses);
+            };
+
+            const handleDeleteVerse = (id) => {
+                const updatedVerses = StorageService.deleteVerse(id);
+                setVerses(updatedVerses);
+                if (practiceVerse?.id === id) {
+                    setPracticeVerse(null);
+                }
+            };
+
+            const createBlankedVerse = (text) => {
+                const words = text.split(' ');
+                const numBlanks = Math.max(3, Math.floor(words.length * 0.3));
+                const indices = new Set();
+                
+                while (indices.size < numBlanks && indices.size < words.length) {
+                    indices.add(Math.floor(Math.random() * words.length));
+                }
+                
+                return words.map((word, idx) => 
+                    indices.has(idx) ? '____' : word
+                ).join(' ');
+            };
+
+            const startPractice = () => {
+                // All verses are available for practice regardless of memorized status
+                const availableVerses = verses;
+                
+                if (availableVerses.length > 0) {
+                    const randomVerse = availableVerses[Math.floor(Math.random() * availableVerses.length)];
+                    setPracticeVerse(randomVerse);
+                    setShowVerseText(false);
+                    setPracticeInput('');
+                    setFeedback(null);
+                    
+                    if (practiceMode === 'complete') {
+                        setBlankedVerse(createBlankedVerse(randomVerse.text));
+                    }
+                }
+            };
+
+            const toggleRecording = () => {
+                if (!recognitionRef.current) {
+                    setFeedback({ type: 'error', message: 'Speech recognition not supported in your browser' });
+                    return;
+                }
+                
+                if (isRecording) {
+                    recognitionRef.current.stop();
+                    setIsRecording(false);
+                } else {
+                    recognitionRef.current.start();
+                    setIsRecording(true);
+                }
+            };
+
+            const checkAnswer = () => {
+                if (!practiceVerse) return;
+                
+                const userText = practiceInput.toLowerCase().trim();
+                
+                if (practiceMode === 'recite') {
+                    const correctText = practiceVerse.text.toLowerCase().trim();
+                    const similarity = calculateSimilarity(userText, correctText);
+                    
+                    if (similarity > 0.8) {
+                        setFeedback({ type: 'success', message: 'Excellent! You got it right!' });
+                    } else {
+                        setFeedback({ type: 'error', message: 'Not quite right. Try again or reveal the verse.' });
+                    }
+                } else if (practiceMode === 'identify') {
+                    const correctRef = practiceVerse.reference.toLowerCase().trim();
+                    if (userText.includes(correctRef.toLowerCase()) || 
+                        correctRef.includes(userText) ||
+                        calculateSimilarity(userText, correctRef) > 0.7) {
+                        setFeedback({ type: 'success', message: 'Correct! You identified the reference!' });
+                    } else {
+                        setFeedback({ type: 'error', message: `Not quite. The reference is ${practiceVerse.reference}` });
+                    }
+                } else if (practiceMode === 'complete') {
+                    const correctText = practiceVerse.text.toLowerCase().trim();
+                    const similarity = calculateSimilarity(userText, correctText);
+                    
+                    if (similarity > 0.7) {
+                        setFeedback({ type: 'success', message: 'Great job! You completed the verse!' });
+                    } else {
+                        setFeedback({ type: 'error', message: 'Keep trying! You can reveal the verse if needed.' });
+                    }
+                }
+            };
+
+            const calculateSimilarity = (str1, str2) => {
+                const longer = str1.length > str2.length ? str1 : str2;
+                const shorter = str1.length > str2.length ? str2 : str1;
+                if (longer.length === 0) return 1.0;
+                return (longer.length - editDistance(longer, shorter)) / longer.length;
+            };
+
+            const editDistance = (str1, str2) => {
+                const matrix = [];
+                for (let i = 0; i <= str2.length; i++) {
+                    matrix[i] = [i];
+                }
+                for (let j = 0; j <= str1.length; j++) {
+                    matrix[0][j] = j;
+                }
+                for (let i = 1; i <= str2.length; i++) {
+                    for (let j = 1; j <= str1.length; j++) {
+                        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                            matrix[i][j] = matrix[i - 1][j - 1];
+                        } else {
+                            matrix[i][j] = Math.min(
+                                matrix[i - 1][j - 1] + 1,
+                                matrix[i][j - 1] + 1,
+                                matrix[i - 1][j] + 1
+                            );
+                        }
+                    }
+                }
+                return matrix[str2.length][str1.length];
+            };
+
+            const stats = {
+                total: verses.length,
+                memorized: verses.filter(v => v.memorized).length,
+                inProgress: verses.filter(v => !v.memorized).length
+            };
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>Scripture Memory</h1>
+                        <p>Memorize and meditate on God's Word</p>
+                    </div>
+
+                    <div className="card">
+                        <div className="tabs">
+                            <button 
+                                className={`tab ${activeTab === 'search' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('search')}
+                            >
+                                <Icons.Search /> Search
+                            </button>
+                            <button 
+                                className={`tab ${activeTab === 'verses' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('verses')}
+                            >
+                                <Icons.Book /> My Verses
+                            </button>
+                            <button 
+                                className={`tab ${activeTab === 'practice' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('practice')}
+                            >
+                                <Icons.Brain /> Practice
+                            </button>
+                            <button 
+                                className={`tab ${activeTab === 'stats' ? 'active' : ''}`}
+                                onClick={() => setActiveTab('stats')}
+                            >
+                                <Icons.BarChart /> Progress
+                            </button>
+                        </div>
+
+                        {activeTab === 'search' && (
+                            <div>
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', color: '#5a4d37', fontWeight: '500' }}>
+                                        Bible Version:
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                        <button 
+                                            className={`btn ${bibleVersion === 'KJV' ? 'btn-primary' : 'btn-secondary'}`}
+                                            onClick={() => setBibleVersion('KJV')}
+                                        >
+                                            KJV
+                                        </button>
+                                        <button 
+                                            className={`btn ${bibleVersion === 'NIV' ? 'btn-primary' : 'btn-secondary'}`}
+                                            onClick={() => setBibleVersion('NIV')}
+                                        >
+                                            NIV
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="search-box">
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        placeholder="e.g., John 3:16, Psalm 23, Romans 8:28"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                    />
+                                    <button className="btn btn-primary" onClick={handleSearch}>
+                                        <Icons.Search /> Search
+                                    </button>
+                                </div>
+
+                                {addSuccess && (
+                                    <div className="feedback success">
+                                        Verse added successfully!
+                                    </div>
+                                )}
+
+                                {error && <div className="error">{error}</div>}
+
+                                {loading && (
+                                    <div className="loading">
+                                        <div className="spinner"></div>
+                                        Searching for verse...
+                                    </div>
+                                )}
+
+                                {currentVerse && !loading && (
+                                    <div>
+                                        <div className="verse-display">
+                                            <div className="verse-text">{currentVerse.text}</div>
+                                            <div className="verse-reference">
+                                                <Icons.Book />
+                                                {currentVerse.reference}
+                                                <span style={{ 
+                                                    marginLeft: 'auto', 
+                                                    fontSize: '0.85rem', 
+                                                    background: '#f5f1e8', 
+                                                    padding: '4px 10px', 
+                                                    borderRadius: '8px',
+                                                    color: '#6b5d42'
+                                                }}>
+                                                    {currentVerse.version}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="verse-actions">
+                                            <button className="btn btn-success" onClick={handleAddVerse}>
+                                                <Icons.Heart filled={false} /> Add to My Verses
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!currentVerse && !loading && !error && (
+                                    <div className="empty-state">
+                                        <Icons.BookOpen />
+                                        <h3>Search for a Bible Verse</h3>
+                                        <p>Enter a reference like "John 3:16" or "Philippians 4:13" to get started</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'verses' && (
+                            <div>
+                                {verses.length === 0 ? (
+                                    <div className="empty-state">
+                                        <Icons.BookOpen />
+                                        <h3>No Verses Yet</h3>
+                                        <p>Start by searching and adding verses you want to memorize</p>
+                                    </div>
+                                ) : (
+                                    <div className="verse-list">
+                                        {verses.map(verse => (
+                                            <div 
+                                                key={verse.id} 
+                                                className={`verse-item ${verse.memorized ? 'memorized' : ''}`}
+                                            >
+                                                <div className="verse-item-header">
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <div className="verse-item-reference">
+                                                            {verse.reference}
+                                                        </div>
+                                                        <span style={{ 
+                                                            fontSize: '0.75rem', 
+                                                            background: verse.memorized ? '#e8f5e9' : '#f5f1e8', 
+                                                            padding: '2px 8px', 
+                                                            borderRadius: '6px',
+                                                            color: '#6b5d42',
+                                                            fontWeight: '500'
+                                                        }}>
+                                                            {verse.version || 'KJV'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="verse-item-actions">
+                                                        <button
+                                                            className={`icon-btn ${verse.memorized ? 'active' : ''}`}
+                                                            onClick={() => handleToggleMemorized(verse.id)}
+                                                            title={verse.memorized ? 'Mark as not memorized' : 'Mark as memorized'}
+                                                        >
+                                                            <Icons.Heart filled={verse.memorized} />
+                                                        </button>
+                                                        <button
+                                                            className="icon-btn"
+                                                            onClick={() => handleDeleteVerse(verse.id)}
+                                                            title="Delete verse"
+                                                        >
+                                                            <Icons.Trash />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="verse-item-text">{verse.text}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'practice' && (
+                            <div>
+                                {!practiceVerse ? (
+                                    <div>
+                                        <h3 style={{ marginBottom: '20px', color: '#2c2416', textAlign: 'center' }}>
+                                            Choose Your Practice Mode
+                                        </h3>
+                                        
+                                        <div className="mode-selector">
+                                            <div 
+                                                className={`mode-card ${practiceMode === 'recite' ? 'active' : ''}`}
+                                                onClick={() => setPracticeMode('recite')}
+                                            >
+                                                <h4>Recite Verse</h4>
+                                                <p>Given the reference, recite the entire verse from memory</p>
+                                            </div>
+                                            <div 
+                                                className={`mode-card ${practiceMode === 'identify' ? 'active' : ''}`}
+                                                onClick={() => setPracticeMode('identify')}
+                                            >
+                                                <h4>Identify Reference</h4>
+                                                <p>Given the verse, identify which scripture it's from</p>
+                                            </div>
+                                            <div 
+                                                className={`mode-card ${practiceMode === 'complete' ? 'active' : ''}`}
+                                                onClick={() => setPracticeMode('complete')}
+                                            >
+                                                <h4>Complete Verse</h4>
+                                                <p>Fill in the missing words to complete the verse</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="empty-state">
+                                            <Icons.Brain />
+                                            <h3>Ready to Practice?</h3>
+                                            <p>
+                                                {practiceMode === 'recite' && 'Test your memory by reciting verses'}
+                                                {practiceMode === 'identify' && 'Challenge yourself to identify scripture references'}
+                                                {practiceMode === 'complete' && 'Fill in the blanks to complete verses'}
+                                            </p>
+                                        </div>
+                                        
+                                        <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                                            <button 
+                                                className="btn btn-primary"
+                                                onClick={startPractice}
+                                                disabled={verses.length === 0}
+                                            >
+                                                <Icons.Brain /> Start Practice
+                                            </button>
+                                            {verses.length === 0 && (
+                                                <p style={{ marginTop: '15px', color: '#8b7355' }}>
+                                                    Add some verses first to start practicing
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="practice-mode">
+                                        <h3 style={{ marginBottom: '20px', color: '#8b6f47' }}>
+                                            {practiceMode === 'recite' && `Recite: ${practiceVerse.reference}`}
+                                            {practiceMode === 'identify' && 'Identify This Scripture'}
+                                            {practiceMode === 'complete' && `Complete: ${practiceVerse.reference}`}
+                                        </h3>
+                                        
+                                        {feedback && (
+                                            <div className={`feedback ${feedback.type}`}>
+                                                {feedback.message}
+                                            </div>
+                                        )}
+
+                                        {practiceMode === 'identify' && (
+                                            <div className="verse-display" style={{ marginBottom: '20px' }}>
+                                                <div className="verse-text">{practiceVerse.text}</div>
+                                            </div>
+                                        )}
+
+                                        {practiceMode === 'complete' && !showVerseText && (
+                                            <div className="verse-display" style={{ marginBottom: '20px' }}>
+                                                <div className="verse-text">{blankedVerse}</div>
+                                            </div>
+                                        )}
+
+                                        {showVerseText && practiceMode !== 'identify' && (
+                                            <div className="verse-display" style={{ marginBottom: '20px' }}>
+                                                <div className="verse-text">{practiceVerse.text}</div>
+                                            </div>
+                                        )}
+
+                                        {!showVerseText && practiceMode === 'recite' && (
+                                            <div className="practice-text">
+                                                Type or speak the verse from memory...
+                                            </div>
+                                        )}
+
+                                        <textarea
+                                            className="practice-input"
+                                            rows="5"
+                                            placeholder={
+                                                practiceMode === 'recite' ? "Type or speak the verse here..." :
+                                                practiceMode === 'identify' ? "Enter the scripture reference (e.g., John 3:16)..." :
+                                                "Type the complete verse with missing words..."
+                                            }
+                                            value={practiceInput}
+                                            onChange={(e) => setPracticeInput(e.target.value)}
+                                        />
+
+                                        <div className="voice-controls">
+                                            <button 
+                                                className={`btn ${isRecording ? 'recording btn-danger' : 'btn-secondary'}`}
+                                                onClick={toggleRecording}
+                                            >
+                                                {isRecording ? <Icons.MicOff /> : <Icons.Mic />}
+                                                {isRecording ? 'Stop Recording' : 'Voice Input'}
+                                            </button>
+                                            {practiceMode !== 'identify' && (
+                                                <button 
+                                                    className="btn btn-secondary"
+                                                    onClick={() => setShowVerseText(!showVerseText)}
+                                                >
+                                                    {showVerseText ? <Icons.EyeOff /> : <Icons.Eye />}
+                                                    {showVerseText ? 'Hide' : 'Reveal'}
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="practice-buttons">
+                                            <button 
+                                                className="btn btn-primary"
+                                                onClick={checkAnswer}
+                                                disabled={!practiceInput.trim()}
+                                            >
+                                                <Icons.Check /> Check Answer
+                                            </button>
+                                            <button 
+                                                className={`btn ${practiceVerse.memorized ? 'btn-success' : 'btn-secondary'}`}
+                                                onClick={() => handleToggleMemorized(practiceVerse.id)}
+                                            >
+                                                <Icons.Heart filled={practiceVerse.memorized} /> 
+                                                {practiceVerse.memorized ? 'Memorized' : 'Mark Memorized'}
+                                            </button>
+                                            <button 
+                                                className="btn btn-secondary"
+                                                onClick={() => {
+                                                    setPracticeInput('');
+                                                    setFeedback(null);
+                                                }}
+                                            >
+                                                <Icons.Edit /> Clear
+                                            </button>
+                                            <button 
+                                                className="btn btn-secondary"
+                                                onClick={startPractice}
+                                            >
+                                                <Icons.Shuffle /> Next Verse
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'stats' && (
+                            <div>
+                                <div className="stats-grid">
+                                    <div className="stat-card">
+                                        <div className="stat-value">{stats.total}</div>
+                                        <div className="stat-label">Total Verses</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-value">{stats.memorized}</div>
+                                        <div className="stat-label">Memorized</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-value">{stats.inProgress}</div>
+                                        <div className="stat-label">In Progress</div>
+                                    </div>
+                                </div>
+
+                                {stats.total > 0 && (
+                                    <div className="verse-display">
+                                        <h3 style={{ marginBottom: '15px', color: '#2c2416' }}>
+                                            Progress Overview
+                                        </h3>
+                                        <div className="progress-bar-container">
+                                            <div className="progress-bar" style={{
+                                                width: `${(stats.memorized / stats.total) * 100}%`
+                                            }}>
+                                                {stats.memorized > 0 && `${Math.round((stats.memorized / stats.total) * 100)}%`}
+                                            </div>
+                                        </div>
+                                        <p style={{ color: '#5a4d37', textAlign: 'center' }}>
+                                            Keep going! You've memorized {stats.memorized} out of {stats.total} verses.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {verses.filter(v => v.memorized).length > 0 && (
+                                    <div>
+                                        <h3 style={{ marginBottom: '15px', marginTop: '30px', color: '#2c2416' }}>
+                                            Memorized Verses
+                                        </h3>
+                                        <div className="verse-list">
+                                            {verses.filter(v => v.memorized).map(verse => (
+                                                <div key={verse.id} className="verse-item memorized">
+                                                    <div className="verse-item-header">
+                                                        <div className="verse-item-reference">
+                                                            {verse.reference}
+                                                        </div>
+                                                    </div>
+                                                    <div className="verse-item-text">{verse.text}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {verses.length === 0 && (
+                                    <div className="empty-state">
+                                        <Icons.BookOpen />
+                                        <h3>No Statistics Yet</h3>
+                                        <p>Start adding and memorizing verses to track your progress</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
