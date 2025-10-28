@@ -191,7 +191,7 @@ function Login({ onLogin, error }) {
                     </button>
 
                     <div className="login-footer">
-                        <p>Your data is stored locally until you set up a database</p>
+                        <p>Your data is securely stored in the cloud with Firebase</p>
                     </div>
                 </div>
             </div>
@@ -390,68 +390,8 @@ const BibleAPI = {
     }
 };
 
-// Local storage service with user-specific data
-const StorageService = {
-    currentUserId: null,
-
-    setUser(userId) {
-        this.currentUserId = userId;
-    },
-
-    getStorageKey() {
-        // If user is logged in, use user-specific key
-        // Otherwise use a default key for backwards compatibility
-        return this.currentUserId
-            ? `bible_verses_${this.currentUserId}`
-            : 'bible_verses';
-    },
-
-    getVerses() {
-        const verses = localStorage.getItem(this.getStorageKey());
-        return verses ? JSON.parse(verses) : [];
-    },
-
-    saveVerses(verses) {
-        localStorage.setItem(this.getStorageKey(), JSON.stringify(verses));
-    },
-
-    addVerse(verse) {
-        const verses = this.getVerses();
-        const exists = verses.find(v => v.reference === verse.reference);
-        if (!exists) {
-            verses.push({
-                ...verse,
-                id: Date.now(),
-                memorized: false,
-                dateAdded: new Date().toISOString()
-            });
-            this.saveVerses(verses);
-        }
-        return verses;
-    },
-
-    toggleMemorized(id) {
-        const verses = this.getVerses();
-        const verse = verses.find(v => v.id === id);
-        if (verse) {
-            verse.memorized = !verse.memorized;
-            this.saveVerses(verses);
-        }
-        return verses;
-    },
-
-    deleteVerse(id) {
-        const verses = this.getVerses().filter(v => v.id !== id);
-        this.saveVerses(verses);
-        return verses;
-    },
-
-    clearUserData() {
-        if (this.currentUserId) {
-            localStorage.removeItem(this.getStorageKey());
-        }
-    }
-};
+// Note: Using FirestoreService from firebase-config.js
+// All storage operations are now handled by Firestore
 
 function App() {
     const [user, setUser] = useState(null);
@@ -480,14 +420,20 @@ function App() {
         }
 
         // Listen for authentication state changes
-        if (typeof FirebaseAuth !== 'undefined') {
-            const unsubscribe = FirebaseAuth.onAuthStateChanged((userData) => {
+        if (typeof FirebaseAuth !== 'undefined' && typeof FirestoreService !== 'undefined') {
+            const unsubscribe = FirebaseAuth.onAuthStateChanged(async (userData) => {
                 setUser(userData);
                 if (userData) {
-                    // Set user in storage service
-                    StorageService.setUser(userData.uid);
-                    // Load user's verses
-                    setVerses(StorageService.getVerses());
+                    // Set user in Firestore service
+                    FirestoreService.setUser(userData.uid);
+                    // Load user's verses from Firestore
+                    try {
+                        const userVerses = await FirestoreService.getVerses();
+                        setVerses(userVerses);
+                    } catch (error) {
+                        console.error('Error loading verses:', error);
+                        setError('Failed to load verses. Please refresh the page.');
+                    }
                 }
                 setAuthLoading(false);
             });
@@ -551,26 +497,41 @@ function App() {
         }
     };
 
-    const handleAddVerse = () => {
+    const handleAddVerse = async () => {
         if (currentVerse) {
-            const updatedVerses = StorageService.addVerse(currentVerse);
-            setVerses(updatedVerses);
-            setError('');
-            setAddSuccess(true);
-            setTimeout(() => setAddSuccess(false), 3000);
+            try {
+                const updatedVerses = await FirestoreService.addVerse(currentVerse);
+                setVerses(updatedVerses);
+                setError('');
+                setAddSuccess(true);
+                setTimeout(() => setAddSuccess(false), 3000);
+            } catch (error) {
+                console.error('Error adding verse:', error);
+                setError('Failed to add verse. Please try again.');
+            }
         }
     };
 
-    const handleToggleMemorized = (id) => {
-        const updatedVerses = StorageService.toggleMemorized(id);
-        setVerses(updatedVerses);
+    const handleToggleMemorized = async (id) => {
+        try {
+            const updatedVerses = await FirestoreService.toggleMemorized(id);
+            setVerses(updatedVerses);
+        } catch (error) {
+            console.error('Error toggling memorized status:', error);
+            setError('Failed to update verse. Please try again.');
+        }
     };
 
-    const handleDeleteVerse = (id) => {
-        const updatedVerses = StorageService.deleteVerse(id);
-        setVerses(updatedVerses);
-        if (practiceVerse?.id === id) {
-            setPracticeVerse(null);
+    const handleDeleteVerse = async (id) => {
+        try {
+            const updatedVerses = await FirestoreService.deleteVerse(id);
+            setVerses(updatedVerses);
+            if (practiceVerse?.id === id) {
+                setPracticeVerse(null);
+            }
+        } catch (error) {
+            console.error('Error deleting verse:', error);
+            setError('Failed to delete verse. Please try again.');
         }
     };
 
@@ -686,17 +647,23 @@ function App() {
         return matrix[str2.length][str1.length];
     };
 
-    const handleLogin = (userData) => {
+    const handleLogin = async (userData) => {
         setUser(userData);
-        StorageService.setUser(userData.uid);
-        setVerses(StorageService.getVerses());
+        FirestoreService.setUser(userData.uid);
+        try {
+            const userVerses = await FirestoreService.getVerses();
+            setVerses(userVerses);
+        } catch (error) {
+            console.error('Error loading verses:', error);
+            setError('Failed to load verses. Please refresh the page.');
+        }
     };
 
     const handleLogout = async () => {
         if (typeof FirebaseAuth !== 'undefined') {
             await FirebaseAuth.signOut();
             setUser(null);
-            StorageService.setUser(null);
+            FirestoreService.setUser(null);
             setVerses([]);
         }
     };

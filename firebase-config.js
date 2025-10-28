@@ -20,6 +20,7 @@ const firebaseConfig = {
 // Initialize Firebase
 let auth = null;
 let googleProvider = null;
+let db = null;
 
 // This will be called after Firebase scripts are loaded
 function initializeFirebase() {
@@ -32,6 +33,9 @@ function initializeFirebase() {
 
         // Initialize Google Auth Provider
         googleProvider = new firebase.auth.GoogleAuthProvider();
+
+        // Initialize Firestore
+        db = firebase.firestore();
 
         console.log('Firebase initialized successfully');
         return true;
@@ -107,5 +111,124 @@ const FirebaseAuth = {
             };
         }
         return null;
+    }
+};
+
+// Firestore service functions
+const FirestoreService = {
+    currentUserId: null,
+
+    setUser(userId) {
+        this.currentUserId = userId;
+    },
+
+    getUserCollection() {
+        if (!this.currentUserId || !db) {
+            throw new Error('User not authenticated or Firestore not initialized');
+        }
+        return db.collection('users').doc(this.currentUserId).collection('verses');
+    },
+
+    async getVerses() {
+        try {
+            if (!this.currentUserId) {
+                return [];
+            }
+
+            const snapshot = await this.getUserCollection().orderBy('dateAdded', 'desc').get();
+            const verses = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                verses.push({
+                    id: doc.id,
+                    ...data,
+                    // Convert Firestore timestamp to ISO string if it exists
+                    dateAdded: data.dateAdded?.toDate?.()?.toISOString() || new Date().toISOString()
+                });
+            });
+            return verses;
+        } catch (error) {
+            console.error('Error getting verses:', error);
+            throw error;
+        }
+    },
+
+    async addVerse(verse) {
+        try {
+            const versesRef = this.getUserCollection();
+
+            // Check if verse already exists
+            const existingQuery = await versesRef.where('reference', '==', verse.reference).get();
+
+            if (!existingQuery.empty) {
+                console.log('Verse already exists');
+                return await this.getVerses();
+            }
+
+            // Add new verse
+            const newVerse = {
+                reference: verse.reference,
+                text: verse.text,
+                translation: verse.translation || verse.version || 'KJV',
+                version: verse.version || verse.translation || 'KJV',
+                memorized: false,
+                dateAdded: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            await versesRef.add(newVerse);
+            return await this.getVerses();
+        } catch (error) {
+            console.error('Error adding verse:', error);
+            throw error;
+        }
+    },
+
+    async toggleMemorized(id) {
+        try {
+            const verseRef = this.getUserCollection().doc(id);
+            const verseDoc = await verseRef.get();
+
+            if (verseDoc.exists) {
+                const currentMemorized = verseDoc.data().memorized || false;
+                await verseRef.update({
+                    memorized: !currentMemorized
+                });
+            }
+
+            return await this.getVerses();
+        } catch (error) {
+            console.error('Error toggling memorized:', error);
+            throw error;
+        }
+    },
+
+    async deleteVerse(id) {
+        try {
+            await this.getUserCollection().doc(id).delete();
+            return await this.getVerses();
+        } catch (error) {
+            console.error('Error deleting verse:', error);
+            throw error;
+        }
+    },
+
+    async clearUserData() {
+        try {
+            if (!this.currentUserId) {
+                return;
+            }
+
+            const snapshot = await this.getUserCollection().get();
+            const batch = db.batch();
+
+            snapshot.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            await batch.commit();
+        } catch (error) {
+            console.error('Error clearing user data:', error);
+            throw error;
+        }
     }
 };
