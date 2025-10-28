@@ -448,12 +448,6 @@ const BIBLE_VERSIONS = {
         name: 'King James Version',
         abbreviation: 'KJV'
     },
-    'NIV': {
-        id: '06125adad2d5898a-01',
-        name: 'New International Version',
-        abbreviation: 'NIV',
-        note: 'Requires API permission - contact support@api.bible'
-    },
     'ASV': {
         id: '06125adad2d5898a-02',
         name: 'American Standard Version',
