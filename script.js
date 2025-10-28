@@ -478,22 +478,6 @@ const BIBLE_VERSIONS = {
         id: 'de4e12af7f28f599-02',
         name: 'King James Version',
         abbreviation: 'KJV'
-    },
-    'NIV': {
-        id: '06125adad2d5898a-01',
-        name: 'New International Version',
-        abbreviation: 'NIV',
-        note: 'Requires API permission - contact support@api.bible'
-    },
-    'ASV': {
-        id: '06125adad2d5898a-02',
-        name: 'American Standard Version',
-        abbreviation: 'ASV'
-    },
-    'WEB': {
-        id: '9879dbb7cfe39e4d-01',
-        name: 'World English Bible',
-        abbreviation: 'WEB'
     }
 };
 
@@ -716,9 +700,6 @@ function App() {
     const [blankedVerse, setBlankedVerse] = useState('');
     const [addSuccess, setAddSuccess] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const [selectedVersion, setSelectedVersion] = useState(
-        localStorage.getItem('preferredBibleVersion') || 'KJV'
-    );
 
     // Prayer tab state
     const [prayers, setPrayers] = useState([]);
@@ -803,11 +784,6 @@ function App() {
         }
     }, []);
 
-    // Save version preference to localStorage
-    useEffect(() => {
-        localStorage.setItem('preferredBibleVersion', selectedVersion);
-    }, [selectedVersion]);
-
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
 
@@ -816,7 +792,7 @@ function App() {
         setError('');
         setAddSuccess(false);
         try {
-            const verse = await BibleAPI.fetchVerse(searchQuery, selectedVersion);
+            const verse = await BibleAPI.fetchVerse(searchQuery, 'KJV');
             setCurrentVerse(verse);
             SoundEffects.playSuccess();
         } catch (err) {
@@ -1240,50 +1216,6 @@ function App() {
 
                 {activeTab === 'search' && (
                     <div>
-                        <div style={{
-                            display: 'flex',
-                            gap: '12px',
-                            marginBottom: '16px',
-                            alignItems: 'center',
-                            flexWrap: 'wrap'
-                        }}>
-                            <label style={{
-                                fontSize: '0.9rem',
-                                color: '#6b5d42',
-                                fontWeight: '500',
-                                whiteSpace: 'nowrap'
-                            }}>
-                                Bible Version:
-                            </label>
-                            <select
-                                value={selectedVersion}
-                                onChange={(e) => {
-                                    setSelectedVersion(e.target.value);
-                                    SoundEffects.playClick();
-                                }}
-                                style={{
-                                    padding: '8px 12px',
-                                    borderRadius: '12px',
-                                    border: '2px solid #e8e1d3',
-                                    background: 'white',
-                                    fontSize: '0.9rem',
-                                    color: '#3a3a3a',
-                                    cursor: 'pointer',
-                                    fontWeight: '500',
-                                    outline: 'none',
-                                    transition: 'all 0.3s ease'
-                                }}
-                                onFocus={(e) => e.target.style.borderColor = '#4a90e2'}
-                                onBlur={(e) => e.target.style.borderColor = '#e8e1d3'}
-                            >
-                                {Object.entries(BIBLE_VERSIONS).map(([key, version]) => (
-                                    <option key={key} value={key}>
-                                        {version.name} ({version.abbreviation})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
                         <div className="search-box">
                             <input
                                 type="text"
