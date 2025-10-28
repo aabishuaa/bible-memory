@@ -441,14 +441,44 @@ function Login({ onLogin, error }) {
     );
 }
 
+// Bible Version Configuration
+const BIBLE_VERSIONS = {
+    'KJV': {
+        id: 'de4e12af7f28f599-02',
+        name: 'King James Version',
+        abbreviation: 'KJV'
+    },
+    'NIV': {
+        id: '06125adad2d5898a-01',
+        name: 'New International Version',
+        abbreviation: 'NIV',
+        note: 'Requires API permission - contact support@api.bible'
+    },
+    'ASV': {
+        id: '06125adad2d5898a-02',
+        name: 'American Standard Version',
+        abbreviation: 'ASV'
+    },
+    'WEB': {
+        id: '9879dbb7cfe39e4d-01',
+        name: 'World English Bible',
+        abbreviation: 'WEB'
+    }
+};
+
 // Bible API service using API.Bible
 const BibleAPI = {
     API_KEY: 'd7c354dc4347405810e82c9f352f159e',
-    BIBLE_ID: 'de4e12af7f28f599-02', // King James Version
+    BIBLE_ID: 'de4e12af7f28f599-02', // Default: King James Version
 
-    async fetchVerse(reference) {
+    async fetchVerse(reference, versionKey = 'KJV') {
         try {
-            const bibleId = this.BIBLE_ID;
+            const version = BIBLE_VERSIONS[versionKey];
+            if (!version) {
+                throw new Error(`Unknown Bible version: ${versionKey}`);
+            }
+
+            const bibleId = version.id;
 
             // API.Bible expects passages in format like "JHN.3.16" or "PSA.23"
             // Convert user input like "John 3:16" to API format
@@ -464,7 +494,7 @@ const BibleAPI = {
 
             if (!response.ok) {
                 // Fallback to search if direct passage lookup fails
-                return await this.searchVerse(reference);
+                return await this.searchVerse(reference, versionKey);
             }
 
             const data = await response.json();
@@ -472,18 +502,23 @@ const BibleAPI = {
             return {
                 reference: data.data.reference,
                 text: data.data.content.trim(),
-                translation: 'KJV',
-                version: 'KJV'
+                translation: version.abbreviation,
+                version: version.abbreviation
             };
         } catch (error) {
             console.error('API.Bible error:', error);
-            throw new Error('Unable to fetch verse. Please check the reference and try again.');
+            throw new Error(`Unable to fetch verse. ${error.message || 'Please check the reference and try again.'}`);
         }
     },
 
-    async searchVerse(reference) {
+    async searchVerse(reference, versionKey = 'KJV') {
         try {
-            const bibleId = this.BIBLE_ID;
+            const version = BIBLE_VERSIONS[versionKey];
+            if (!version) {
+                throw new Error(`Unknown Bible version: ${versionKey}`);
+            }
+
+            const bibleId = version.id;
             const url = `https://api.scripture.api.bible/v1/bibles/${bibleId}/search?query=${encodeURIComponent(reference)}&limit=1`;
 
             const response = await fetch(url, {
@@ -518,8 +553,8 @@ const BibleAPI = {
             return {
                 reference: verseData.data.reference,
                 text: verseData.data.content.trim(),
-                translation: 'KJV',
-                version: 'KJV'
+                translation: version.abbreviation,
+                version: version.abbreviation
             };
         } catch (error) {
             console.error('Search error:', error);
@@ -650,6 +685,9 @@ function App() {
     const [blankedVerse, setBlankedVerse] = useState('');
     const [addSuccess, setAddSuccess] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
+    const [selectedVersion, setSelectedVersion] = useState(
+        localStorage.getItem('preferredBibleVersion') || 'KJV'
+    );
     const recognitionRef = useRef(null);
 
     useEffect(() => {
@@ -719,6 +757,11 @@ function App() {
         }
     }, []);
 
+    // Save version preference to localStorage
+    useEffect(() => {
+        localStorage.setItem('preferredBibleVersion', selectedVersion);
+    }, [selectedVersion]);
+
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
 
@@ -727,7 +770,7 @@ function App() {
         setError('');
         setAddSuccess(false);
         try {
-            const verse = await BibleAPI.fetchVerse(searchQuery);
+            const verse = await BibleAPI.fetchVerse(searchQuery, selectedVersion);
             setCurrentVerse(verse);
             SoundEffects.playSuccess();
         } catch (err) {
@@ -1031,6 +1074,50 @@ function App() {
 
                 {activeTab === 'search' && (
                     <div>
+                        <div style={{
+                            display: 'flex',
+                            gap: '12px',
+                            marginBottom: '16px',
+                            alignItems: 'center',
+                            flexWrap: 'wrap'
+                        }}>
+                            <label style={{
+                                fontSize: '0.9rem',
+                                color: '#6b5d42',
+                                fontWeight: '500',
+                                whiteSpace: 'nowrap'
+                            }}>
+                                Bible Version:
+                            </label>
+                            <select
+                                value={selectedVersion}
+                                onChange={(e) => {
+                                    setSelectedVersion(e.target.value);
+                                    SoundEffects.playClick();
+                                }}
+                                style={{
+                                    padding: '8px 12px',
+                                    borderRadius: '12px',
+                                    border: '2px solid #e8e1d3',
+                                    background: 'white',
+                                    fontSize: '0.9rem',
+                                    color: '#3a3a3a',
+                                    cursor: 'pointer',
+                                    fontWeight: '500',
+                                    outline: 'none',
+                                    transition: 'all 0.3s ease'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = '#4a90e2'}
+                                onBlur={(e) => e.target.style.borderColor = '#e8e1d3'}
+                            >
+                                {Object.entries(BIBLE_VERSIONS).map(([key, version]) => (
+                                    <option key={key} value={key}>
+                                        {version.name} ({version.abbreviation})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
                         <div className="search-box">
                             <input
                                 type="text"
