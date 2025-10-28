@@ -1,5 +1,183 @@
 const { useState, useEffect, useCallback, useRef } = React;
 
+// Sound Effects System using Web Audio API
+const SoundEffects = {
+    context: null,
+
+    init() {
+        if (!this.context) {
+            this.context = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    },
+
+    // Play success sound (pleasant chime)
+    playSuccess() {
+        this.init();
+        const ctx = this.context;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+        osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2); // G5
+
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+    },
+
+    // Play error sound (gentle negative tone)
+    playError() {
+        this.init();
+        const ctx = this.context;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.frequency.setValueAtTime(200, ctx.currentTime);
+        osc.frequency.setValueAtTime(150, ctx.currentTime + 0.1);
+
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.3);
+    },
+
+    // Play button click sound (subtle tick)
+    playClick() {
+        this.init();
+        const ctx = this.context;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.05);
+    },
+
+    // Play celebration sound (triumphant fanfare)
+    playCelebration() {
+        this.init();
+        const ctx = this.context;
+
+        // Play multiple notes in sequence
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.15);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.15 + 0.5);
+
+            osc.start(ctx.currentTime + i * 0.15);
+            osc.stop(ctx.currentTime + i * 0.15 + 0.5);
+        });
+    },
+
+    // Play add verse sound (pleasant pop)
+    playAdd() {
+        this.init();
+        const ctx = this.context;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.frequency.setValueAtTime(600, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.1);
+
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.2);
+    }
+};
+
+// Confetti Animation
+const Confetti = {
+    create() {
+        const canvas = document.createElement('canvas');
+        canvas.id = 'confetti-canvas';
+        canvas.style.position = 'fixed';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.pointerEvents = 'none';
+        canvas.style.zIndex = '9999';
+        document.body.appendChild(canvas);
+
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const pieces = [];
+        const numberOfPieces = 100;
+        const colors = ['#8b6f47', '#6b8e5f', '#f5f1e8', '#e8dcc8', '#d4c4a8'];
+
+        for (let i = 0; i < numberOfPieces; i++) {
+            pieces.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height - canvas.height,
+                rotation: Math.random() * 360,
+                rotationSpeed: Math.random() * 10 - 5,
+                size: Math.random() * 8 + 4,
+                speedX: Math.random() * 3 - 1.5,
+                speedY: Math.random() * 3 + 2,
+                color: colors[Math.floor(Math.random() * colors.length)]
+            });
+        }
+
+        let animationId;
+        const animate = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            pieces.forEach(piece => {
+                ctx.save();
+                ctx.translate(piece.x, piece.y);
+                ctx.rotate(piece.rotation * Math.PI / 180);
+                ctx.fillStyle = piece.color;
+                ctx.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size);
+                ctx.restore();
+
+                piece.x += piece.speedX;
+                piece.y += piece.speedY;
+                piece.rotation += piece.rotationSpeed;
+                piece.speedY += 0.1; // gravity
+            });
+
+            if (pieces.every(p => p.y > canvas.height)) {
+                cancelAnimationFrame(animationId);
+                document.body.removeChild(canvas);
+            } else {
+                animationId = requestAnimationFrame(animate);
+            }
+        };
+
+        animate();
+    }
+};
+
 // Icon components
 const Icons = {
     Search: () => (
@@ -202,14 +380,11 @@ function Login({ onLogin, error }) {
 // Bible API service using API.Bible
 const BibleAPI = {
     API_KEY: 'd7c354dc4347405810e82c9f352f159e',
-    BIBLE_IDS: {
-        'KJV': 'de4e12af7f28f599-02', // King James Version
-        'NIV': '06125adad2d5898a-01'  // New International Version (English)
-    },
+    BIBLE_ID: 'de4e12af7f28f599-02', // King James Version
 
-    async fetchVerse(reference, version = 'KJV') {
+    async fetchVerse(reference) {
         try {
-            const bibleId = this.BIBLE_IDS[version];
+            const bibleId = this.BIBLE_ID;
 
             // API.Bible expects passages in format like "JHN.3.16" or "PSA.23"
             // Convert user input like "John 3:16" to API format
@@ -225,7 +400,7 @@ const BibleAPI = {
 
             if (!response.ok) {
                 // Fallback to search if direct passage lookup fails
-                return await this.searchVerse(reference, version);
+                return await this.searchVerse(reference);
             }
 
             const data = await response.json();
@@ -233,8 +408,8 @@ const BibleAPI = {
             return {
                 reference: data.data.reference,
                 text: data.data.content.trim(),
-                translation: version,
-                version: version
+                translation: 'KJV',
+                version: 'KJV'
             };
         } catch (error) {
             console.error('API.Bible error:', error);
@@ -242,9 +417,9 @@ const BibleAPI = {
         }
     },
 
-    async searchVerse(reference, version = 'KJV') {
+    async searchVerse(reference) {
         try {
-            const bibleId = this.BIBLE_IDS[version];
+            const bibleId = this.BIBLE_ID;
             const url = `https://api.scripture.api.bible/v1/bibles/${bibleId}/search?query=${encodeURIComponent(reference)}&limit=1`;
 
             const response = await fetch(url, {
@@ -279,8 +454,8 @@ const BibleAPI = {
             return {
                 reference: verseData.data.reference,
                 text: verseData.data.content.trim(),
-                translation: version,
-                version: version
+                translation: 'KJV',
+                version: 'KJV'
             };
         } catch (error) {
             console.error('Search error:', error);
@@ -409,7 +584,6 @@ function App() {
     const [feedback, setFeedback] = useState(null);
     const [isRecording, setIsRecording] = useState(false);
     const [blankedVerse, setBlankedVerse] = useState('');
-    const [bibleVersion, setBibleVersion] = useState('KJV'); // KJV or NIV
     const [addSuccess, setAddSuccess] = useState(false);
     const recognitionRef = useRef(null);
 
@@ -483,15 +657,18 @@ function App() {
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
 
+        SoundEffects.playClick();
         setLoading(true);
         setError('');
         setAddSuccess(false);
         try {
-            const verse = await BibleAPI.fetchVerse(searchQuery, bibleVersion);
+            const verse = await BibleAPI.fetchVerse(searchQuery);
             setCurrentVerse(verse);
+            SoundEffects.playSuccess();
         } catch (err) {
             setError(err.message);
             setCurrentVerse(null);
+            SoundEffects.playError();
         } finally {
             setLoading(false);
         }
@@ -504,21 +681,33 @@ function App() {
                 setVerses(updatedVerses);
                 setError('');
                 setAddSuccess(true);
+                SoundEffects.playAdd();
                 setTimeout(() => setAddSuccess(false), 3000);
             } catch (error) {
                 console.error('Error adding verse:', error);
                 setError('Failed to add verse. Please try again.');
+                SoundEffects.playError();
             }
         }
     };
 
     const handleToggleMemorized = async (id) => {
         try {
+            const verse = verses.find(v => v.id === id);
             const updatedVerses = await FirestoreService.toggleMemorized(id);
             setVerses(updatedVerses);
+
+            // If marking as memorized, play celebration
+            if (verse && !verse.memorized) {
+                SoundEffects.playCelebration();
+                Confetti.create();
+            } else {
+                SoundEffects.playClick();
+            }
         } catch (error) {
             console.error('Error toggling memorized status:', error);
             setError('Failed to update verse. Please try again.');
+            SoundEffects.playError();
         }
     };
 
@@ -592,8 +781,10 @@ function App() {
 
             if (similarity > 0.8) {
                 setFeedback({ type: 'success', message: 'Excellent! You got it right!' });
+                SoundEffects.playSuccess();
             } else {
                 setFeedback({ type: 'error', message: 'Not quite right. Try again or reveal the verse.' });
+                SoundEffects.playError();
             }
         } else if (practiceMode === 'identify') {
             const correctRef = practiceVerse.reference.toLowerCase().trim();
@@ -601,8 +792,10 @@ function App() {
                 correctRef.includes(userText) ||
                 calculateSimilarity(userText, correctRef) > 0.7) {
                 setFeedback({ type: 'success', message: 'Correct! You identified the reference!' });
+                SoundEffects.playSuccess();
             } else {
                 setFeedback({ type: 'error', message: `Not quite. The reference is ${practiceVerse.reference}` });
+                SoundEffects.playError();
             }
         } else if (practiceMode === 'complete') {
             const correctText = practiceVerse.text.toLowerCase().trim();
@@ -610,8 +803,10 @@ function App() {
 
             if (similarity > 0.7) {
                 setFeedback({ type: 'success', message: 'Great job! You completed the verse!' });
+                SoundEffects.playSuccess();
             } else {
                 setFeedback({ type: 'error', message: 'Keep trying! You can reveal the verse if needed.' });
+                SoundEffects.playError();
             }
         }
     };
@@ -749,26 +944,6 @@ function App() {
 
                 {activeTab === 'search' && (
                     <div>
-                        <div style={{ marginBottom: '15px' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', color: '#5a4d37', fontWeight: '500' }}>
-                                Bible Version:
-                            </label>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button
-                                    className={`btn ${bibleVersion === 'KJV' ? 'btn-primary' : 'btn-secondary'}`}
-                                    onClick={() => setBibleVersion('KJV')}
-                                >
-                                    KJV
-                                </button>
-                                <button
-                                    className={`btn ${bibleVersion === 'NIV' ? 'btn-primary' : 'btn-secondary'}`}
-                                    onClick={() => setBibleVersion('NIV')}
-                                >
-                                    NIV
-                                </button>
-                            </div>
-                        </div>
-
                         <div className="search-box">
                             <input
                                 type="text"
