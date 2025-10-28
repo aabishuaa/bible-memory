@@ -1,21 +1,14 @@
 // Firebase Configuration
-// Replace these values with your Firebase project credentials
-// To get these values:
-// 1. Go to https://console.firebase.google.com/
-// 2. Create a new project or select an existing one
-// 3. Go to Project Settings > General
-// 4. Scroll down to "Your apps" and click on the web app icon (</>)
-// 5. Copy the firebaseConfig object values below
+// Configuration is now loaded from config.js
+// See config.example.js for setup instructions
 
-const firebaseConfig = {
-  apiKey: "AIzaSyALDC6yTPDRiGA9FK-V_o1RhNGOxWyTV78",
-  authDomain: "bible-memory-f26bb.firebaseapp.com",
-  projectId: "bible-memory-f26bb",
-  storageBucket: "bible-memory-f26bb.firebasestorage.app",
-  messagingSenderId: "1037146731449",
-  appId: "1:1037146731449:web:4b4c78d31402f9a9f37c68",
-  measurementId: "G-GXPVB0WKZC"
-};
+// Check if AppConfig is loaded
+if (typeof AppConfig === 'undefined' || !AppConfig.firebase) {
+  console.error('Firebase configuration not found. Please create config.js from config.example.js');
+  alert('Firebase configuration missing. Please set up config.js file. See config.example.js for instructions.');
+}
+
+const firebaseConfig = AppConfig?.firebase || {};
 
 // Initialize Firebase
 let auth = null;

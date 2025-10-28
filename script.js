@@ -483,7 +483,7 @@ const BIBLE_VERSIONS = {
 
 // Bible API service using API.Bible
 const BibleAPI = {
-    API_KEY: 'd7c354dc4347405810e82c9f352f159e',
+    API_KEY: AppConfig?.bibleApi?.apiKey || '',
     BIBLE_ID: 'de4e12af7f28f599-02', // Default: King James Version
 
     async fetchVerse(reference, versionKey = 'KJV') {
@@ -864,6 +864,15 @@ function App() {
     };
 
     const handleDeleteVerse = async (id) => {
+        const verse = verses.find(v => v.id === id);
+        const confirmDelete = window.confirm(
+            `Are you sure you want to delete this verse?\n\n${verse?.reference || 'Unknown reference'}\n\nThis action cannot be undone.`
+        );
+
+        if (!confirmDelete) {
+            return;
+        }
+
         try {
             const updatedVerses = await FirestoreService.deleteVerse(id);
             setVerses(updatedVerses);
@@ -1007,6 +1016,14 @@ function App() {
     };
 
     const handleLogout = async () => {
+        const confirmLogout = window.confirm(
+            'Are you sure you want to logout?\n\nYour data is safely stored in the cloud and will be available when you sign in again.'
+        );
+
+        if (!confirmLogout) {
+            return;
+        }
+
         if (typeof FirebaseAuth !== 'undefined') {
             await FirebaseAuth.signOut();
             setUser(null);
@@ -1071,6 +1088,15 @@ function App() {
     };
 
     const handleDeletePrayer = async (prayerId) => {
+        const prayer = prayers.find(p => p.id === prayerId);
+        const confirmDelete = window.confirm(
+            `Are you sure you want to delete this prayer?\n\n"${prayer?.title || 'Untitled prayer'}"\n\nThis action cannot be undone.`
+        );
+
+        if (!confirmDelete) {
+            return;
+        }
+
         try {
             await FirestoreService.deletePrayer(prayerId);
             const updatedPrayers = await FirestoreService.getPrayers();
