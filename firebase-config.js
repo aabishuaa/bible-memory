@@ -129,6 +129,13 @@ const FirestoreService = {
         return db.collection('users').doc(this.currentUserId).collection('verses');
     },
 
+    getPrayerCollection() {
+        if (!this.currentUserId || !db) {
+            throw new Error('User not authenticated or Firestore not initialized');
+        }
+        return db.collection('users').doc(this.currentUserId).collection('prayers');
+    },
+
     async getVerses() {
         try {
             if (!this.currentUserId) {
@@ -228,6 +235,96 @@ const FirestoreService = {
             await batch.commit();
         } catch (error) {
             console.error('Error clearing user data:', error);
+            throw error;
+        }
+    },
+
+    // Prayer service methods
+    async getPrayers() {
+        try {
+            if (!this.currentUserId) {
+                return [];
+            }
+
+            const snapshot = await this.getPrayerCollection().orderBy('dateAdded', 'desc').get();
+            const prayers = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                prayers.push({
+                    id: doc.id,
+                    ...data,
+                    // Convert Firestore timestamp to ISO string if it exists
+                    dateAdded: data.dateAdded?.toDate?.()?.toISOString() || new Date().toISOString(),
+                    dateAnswered: data.dateAnswered?.toDate?.()?.toISOString() || null
+                });
+            });
+            return prayers;
+        } catch (error) {
+            console.error('Error getting prayers:', error);
+            throw error;
+        }
+    },
+
+    async addPrayer(prayer) {
+        try {
+            const prayersRef = this.getPrayerCollection();
+
+            // Add new prayer
+            const newPrayer = {
+                title: prayer.title,
+                content: prayer.content,
+                category: prayer.category,
+                verseRefs: prayer.verseRefs || [],
+                answered: false,
+                dateAdded: firebase.firestore.FieldValue.serverTimestamp(),
+                dateAnswered: null
+            };
+
+            await prayersRef.add(newPrayer);
+            return await this.getPrayers();
+        } catch (error) {
+            console.error('Error adding prayer:', error);
+            throw error;
+        }
+    },
+
+    async updatePrayer(id, updates) {
+        try {
+            const prayerRef = this.getPrayerCollection().doc(id);
+            const prayerDoc = await prayerRef.get();
+
+            if (prayerDoc.exists) {
+                const updateData = {
+                    title: updates.title,
+                    content: updates.content,
+                    category: updates.category,
+                    verseRefs: updates.verseRefs || [],
+                    answered: updates.answered
+                };
+
+                // If marking as answered and not already answered, set dateAnswered
+                if (updates.answered && !prayerDoc.data().answered) {
+                    updateData.dateAnswered = firebase.firestore.FieldValue.serverTimestamp();
+                } else if (!updates.answered) {
+                    updateData.dateAnswered = null;
+                }
+
+                await prayerRef.update(updateData);
+            }
+
+            return await this.getPrayers();
+        } catch (error) {
+            console.error('Error updating prayer:', error);
+            throw error;
+        }
+    },
+
+    async deletePrayer(id) {
+        try {
+            await this.getPrayerCollection().doc(id).delete();
+            return await this.getPrayers();
+        } catch (error) {
+            console.error('Error deleting prayer:', error);
             throw error;
         }
     }

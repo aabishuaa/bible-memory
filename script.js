@@ -370,6 +370,37 @@ const Icons = {
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
         </svg>
+    ),
+    Hands: () => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 5.69l5 2.14v6.43c0 3.88-2.69 7.52-5 8.74-2.31-1.22-5-4.86-5-8.74V7.83l5-2.14z"></path>
+            <path d="M12 9v6m-3-3h6"></path>
+        </svg>
+    ),
+    Plus: () => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+    ),
+    Tag: () => (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+        </svg>
+    ),
+    CheckCircle: ({ filled }) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="9 12 11 14 15 10"></polyline>
+        </svg>
+    ),
+    Save: () => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
     )
 };
 
@@ -688,6 +719,18 @@ function App() {
     const [selectedVersion, setSelectedVersion] = useState(
         localStorage.getItem('preferredBibleVersion') || 'KJV'
     );
+
+    // Prayer tab state
+    const [prayers, setPrayers] = useState([]);
+    const [showPrayerForm, setShowPrayerForm] = useState(false);
+    const [editingPrayer, setEditingPrayer] = useState(null);
+    const [prayerTitle, setPrayerTitle] = useState('');
+    const [prayerContent, setPrayerContent] = useState('');
+    const [prayerCategory, setPrayerCategory] = useState('Request');
+    const [prayerVerseRefs, setPrayerVerseRefs] = useState([]);
+    const [newVerseRef, setNewVerseRef] = useState('');
+    const [prayerFilter, setPrayerFilter] = useState('all'); // all, answered, unanswered
+
     const recognitionRef = useRef(null);
 
     useEffect(() => {
@@ -703,13 +746,16 @@ function App() {
                 if (userData) {
                     // Set user in Firestore service
                     FirestoreService.setUser(userData.uid);
-                    // Load user's verses from Firestore
+                    // Load user's verses and prayers from Firestore
                     try {
                         const userVerses = await FirestoreService.getVerses();
                         setVerses(userVerses);
+
+                        const userPrayers = await FirestoreService.getPrayers();
+                        setPrayers(userPrayers);
                     } catch (error) {
-                        console.error('Error loading verses:', error);
-                        setError('Failed to load verses. Please refresh the page.');
+                        console.error('Error loading data:', error);
+                        setError('Failed to load data. Please refresh the page.');
                     }
                 }
                 setAuthLoading(false);
@@ -993,6 +1039,120 @@ function App() {
         }
     };
 
+    // Prayer handlers
+    const handleAddPrayer = async () => {
+        if (!prayerTitle.trim() || !prayerContent.trim()) {
+            setError('Please enter both title and content for your prayer');
+            return;
+        }
+
+        try {
+            const newPrayer = {
+                title: prayerTitle.trim(),
+                content: prayerContent.trim(),
+                category: prayerCategory,
+                verseRefs: prayerVerseRefs,
+                answered: false,
+                dateAdded: new Date().toISOString(),
+                dateAnswered: null
+            };
+
+            if (editingPrayer) {
+                // Update existing prayer
+                await FirestoreService.updatePrayer(editingPrayer.id, newPrayer);
+            } else {
+                // Add new prayer
+                await FirestoreService.addPrayer(newPrayer);
+            }
+
+            // Reload prayers
+            const updatedPrayers = await FirestoreService.getPrayers();
+            setPrayers(updatedPrayers);
+
+            // Reset form
+            setPrayerTitle('');
+            setPrayerContent('');
+            setPrayerCategory('Request');
+            setPrayerVerseRefs([]);
+            setShowPrayerForm(false);
+            setEditingPrayer(null);
+            setError('');
+            SoundEffects.playAdd();
+        } catch (error) {
+            console.error('Error saving prayer:', error);
+            setError('Failed to save prayer. Please try again.');
+            SoundEffects.playError();
+        }
+    };
+
+    const handleEditPrayer = (prayer) => {
+        setEditingPrayer(prayer);
+        setPrayerTitle(prayer.title);
+        setPrayerContent(prayer.content);
+        setPrayerCategory(prayer.category);
+        setPrayerVerseRefs(prayer.verseRefs || []);
+        setShowPrayerForm(true);
+    };
+
+    const handleDeletePrayer = async (prayerId) => {
+        try {
+            await FirestoreService.deletePrayer(prayerId);
+            const updatedPrayers = await FirestoreService.getPrayers();
+            setPrayers(updatedPrayers);
+            SoundEffects.playClick();
+        } catch (error) {
+            console.error('Error deleting prayer:', error);
+            setError('Failed to delete prayer. Please try again.');
+            SoundEffects.playError();
+        }
+    };
+
+    const handleToggleAnswered = async (prayerId) => {
+        try {
+            const prayer = prayers.find(p => p.id === prayerId);
+            const updatedPrayer = {
+                ...prayer,
+                answered: !prayer.answered,
+                dateAnswered: !prayer.answered ? new Date().toISOString() : null
+            };
+            await FirestoreService.updatePrayer(prayerId, updatedPrayer);
+            const updatedPrayers = await FirestoreService.getPrayers();
+            setPrayers(updatedPrayers);
+
+            if (!prayer.answered) {
+                SoundEffects.playCelebration();
+                Confetti.create();
+            } else {
+                SoundEffects.playClick();
+            }
+        } catch (error) {
+            console.error('Error toggling answered status:', error);
+            setError('Failed to update prayer. Please try again.');
+            SoundEffects.playError();
+        }
+    };
+
+    const handleAddVerseRef = () => {
+        if (newVerseRef.trim() && !prayerVerseRefs.includes(newVerseRef.trim())) {
+            setPrayerVerseRefs([...prayerVerseRefs, newVerseRef.trim()]);
+            setNewVerseRef('');
+        }
+    };
+
+    const handleRemoveVerseRef = (ref) => {
+        setPrayerVerseRefs(prayerVerseRefs.filter(r => r !== ref));
+    };
+
+    const cancelPrayerForm = () => {
+        setPrayerTitle('');
+        setPrayerContent('');
+        setPrayerCategory('Request');
+        setPrayerVerseRefs([]);
+        setShowPrayerForm(false);
+        setEditingPrayer(null);
+        setError('');
+    };
+
     const stats = {
         total: verses.length,
         memorized: verses.filter(v => v.memorized).length,
@@ -1063,6 +1223,12 @@ function App() {
                         onClick={() => setActiveTab('practice')}
                     >
                         <Icons.Brain /> Practice
+                    </button>
+                    <button
+                        className={`tab ${activeTab === 'prayer' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('prayer')}
+                    >
+                        <Icons.Hands /> Prayer
                     </button>
                     <button
                         className={`tab ${activeTab === 'stats' ? 'active' : ''}`}
@@ -1405,6 +1571,217 @@ function App() {
                                         <Icons.Shuffle /> Next Verse
                                     </button>
                                 </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'prayer' && (
+                    <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                <button
+                                    className={`btn ${prayerFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                                    onClick={() => setPrayerFilter('all')}
+                                    style={{ padding: '8px 16px', fontSize: '0.9rem' }}
+                                >
+                                    All
+                                </button>
+                                <button
+                                    className={`btn ${prayerFilter === 'unanswered' ? 'btn-primary' : 'btn-secondary'}`}
+                                    onClick={() => setPrayerFilter('unanswered')}
+                                    style={{ padding: '8px 16px', fontSize: '0.9rem' }}
+                                >
+                                    Active
+                                </button>
+                                <button
+                                    className={`btn ${prayerFilter === 'answered' ? 'btn-primary' : 'btn-secondary'}`}
+                                    onClick={() => setPrayerFilter('answered')}
+                                    style={{ padding: '8px 16px', fontSize: '0.9rem' }}
+                                >
+                                    Answered
+                                </button>
+                            </div>
+                            <button
+                                className="btn btn-success"
+                                onClick={() => setShowPrayerForm(!showPrayerForm)}
+                            >
+                                <Icons.Plus /> {showPrayerForm ? 'Cancel' : 'New Prayer'}
+                            </button>
+                        </div>
+
+                        {showPrayerForm && (
+                            <div className="prayer-form">
+                                <h3 style={{ marginBottom: '15px', color: '#2c2416' }}>
+                                    {editingPrayer ? 'Edit Prayer' : 'New Prayer'}
+                                </h3>
+
+                                {error && <div className="error">{error}</div>}
+
+                                <input
+                                    type="text"
+                                    className="input"
+                                    placeholder="Prayer Title"
+                                    value={prayerTitle}
+                                    onChange={(e) => setPrayerTitle(e.target.value)}
+                                    style={{ marginBottom: '12px' }}
+                                />
+
+                                <textarea
+                                    className="practice-input"
+                                    rows="5"
+                                    placeholder="Write your prayer here..."
+                                    value={prayerContent}
+                                    onChange={(e) => setPrayerContent(e.target.value)}
+                                    style={{ marginBottom: '12px' }}
+                                />
+
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', color: '#2c2416', fontWeight: '500' }}>
+                                        Category
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                        {['Praise', 'Request', 'Thanksgiving', 'Intercession', 'Confession'].map(cat => (
+                                            <button
+                                                key={cat}
+                                                className={`btn ${prayerCategory === cat ? 'btn-primary' : 'btn-secondary'}`}
+                                                onClick={() => setPrayerCategory(cat)}
+                                                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                                            >
+                                                {cat}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', color: '#2c2416', fontWeight: '500' }}>
+                                        Bible Verse References
+                                    </label>
+                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                                        <input
+                                            type="text"
+                                            className="input"
+                                            placeholder="e.g., John 3:16"
+                                            value={newVerseRef}
+                                            onChange={(e) => setNewVerseRef(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && handleAddVerseRef()}
+                                            style={{ flex: 1 }}
+                                        />
+                                        <button
+                                            className="btn btn-secondary"
+                                            onClick={handleAddVerseRef}
+                                            disabled={!newVerseRef.trim()}
+                                        >
+                                            <Icons.Plus />
+                                        </button>
+                                    </div>
+                                    {prayerVerseRefs.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            {prayerVerseRefs.map(ref => (
+                                                <div key={ref} className="verse-tag">
+                                                    <Icons.Tag />
+                                                    <span>{ref}</span>
+                                                    <button
+                                                        onClick={() => handleRemoveVerseRef(ref)}
+                                                        className="verse-tag-remove"
+                                                    >
+                                                        <Icons.X />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={cancelPrayerForm}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={handleAddPrayer}
+                                    >
+                                        <Icons.Save /> {editingPrayer ? 'Update' : 'Save'} Prayer
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {prayers.length === 0 ? (
+                            <div className="empty-state">
+                                <Icons.Hands />
+                                <h3>No Prayers Yet</h3>
+                                <p>Create your first prayer to start your prayer journal</p>
+                            </div>
+                        ) : (
+                            <div className="prayer-list">
+                                {prayers
+                                    .filter(prayer => {
+                                        if (prayerFilter === 'answered') return prayer.answered;
+                                        if (prayerFilter === 'unanswered') return !prayer.answered;
+                                        return true;
+                                    })
+                                    .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded))
+                                    .map(prayer => (
+                                        <div key={prayer.id} className={`prayer-card ${prayer.answered ? 'answered' : ''}`}>
+                                            <div className="prayer-card-header">
+                                                <div>
+                                                    <h4 className="prayer-title">{prayer.title}</h4>
+                                                    <span className={`prayer-category ${prayer.category.toLowerCase()}`}>
+                                                        {prayer.category}
+                                                    </span>
+                                                </div>
+                                                <div className="prayer-card-actions">
+                                                    <button
+                                                        className={`icon-btn ${prayer.answered ? 'active' : ''}`}
+                                                        onClick={() => handleToggleAnswered(prayer.id)}
+                                                        title={prayer.answered ? 'Mark as unanswered' : 'Mark as answered'}
+                                                    >
+                                                        <Icons.CheckCircle filled={prayer.answered} />
+                                                    </button>
+                                                    <button
+                                                        className="icon-btn"
+                                                        onClick={() => handleEditPrayer(prayer)}
+                                                        title="Edit prayer"
+                                                    >
+                                                        <Icons.Edit />
+                                                    </button>
+                                                    <button
+                                                        className="icon-btn"
+                                                        onClick={() => handleDeletePrayer(prayer.id)}
+                                                        title="Delete prayer"
+                                                    >
+                                                        <Icons.Trash />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="prayer-content">{prayer.content}</div>
+                                            {prayer.verseRefs && prayer.verseRefs.length > 0 && (
+                                                <div className="prayer-verses">
+                                                    {prayer.verseRefs.map(ref => (
+                                                        <span key={ref} className="prayer-verse-ref">
+                                                            <Icons.Book />
+                                                            {ref}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="prayer-footer">
+                                                <span className="prayer-date">
+                                                    Added: {new Date(prayer.dateAdded).toLocaleDateString()}
+                                                </span>
+                                                {prayer.answered && prayer.dateAnswered && (
+                                                    <span className="prayer-date-answered">
+                                                        Answered: {new Date(prayer.dateAnswered).toLocaleDateString()}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
                             </div>
                         )}
                     </div>
