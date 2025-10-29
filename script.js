@@ -1089,6 +1089,7 @@ function App() {
   const [feedback, setFeedback] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [blankedVerse, setBlankedVerse] = useState("");
+  const [missingWords, setMissingWords] = useState([]);
   const [addSuccess, setAddSuccess] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
@@ -1292,9 +1293,18 @@ function App() {
       indices.add(Math.floor(Math.random() * words.length));
     }
 
-    return words
-      .map((word, idx) => (indices.has(idx) ? "____" : word))
+    const missing = [];
+    const blanked = words
+      .map((word, idx) => {
+        if (indices.has(idx)) {
+          missing.push(word);
+          return "____";
+        }
+        return word;
+      })
       .join(" ");
+
+    return { blanked, missing };
   };
 
   const startPractice = () => {
@@ -1310,7 +1320,9 @@ function App() {
       setFeedback(null);
 
       if (practiceMode === "complete") {
-        setBlankedVerse(createBlankedVerse(randomVerse.text));
+        const { blanked, missing } = createBlankedVerse(randomVerse.text);
+        setBlankedVerse(blanked);
+        setMissingWords(missing);
       }
     }
   };
@@ -1375,19 +1387,42 @@ function App() {
         SoundEffects.playError();
       }
     } else if (practiceMode === "complete") {
-      const correctText = practiceVerse.text.toLowerCase().trim();
-      const similarity = calculateSimilarity(userText, correctText);
+      // In complete mode, user only needs to type the missing words
+      const userWords = userText.split(/\s+/).filter(w => w.length > 0);
+      const correctWords = missingWords.map(w => w.toLowerCase().replace(/[.,!?;:'"]/g, ''));
 
-      if (similarity > 0.7) {
+      // Check if user provided the right number of words
+      if (userWords.length !== correctWords.length) {
+        setFeedback({
+          type: "error",
+          message: `Please provide ${correctWords.length} missing word(s). You provided ${userWords.length}.`,
+        });
+        SoundEffects.playError();
+        return;
+      }
+
+      // Compare each word with some tolerance for punctuation
+      let correctCount = 0;
+      for (let i = 0; i < correctWords.length; i++) {
+        const userWord = userWords[i].toLowerCase().replace(/[.,!?;:'"]/g, '');
+        const correctWord = correctWords[i];
+
+        if (userWord === correctWord || calculateSimilarity(userWord, correctWord) > 0.8) {
+          correctCount++;
+        }
+      }
+
+      const accuracy = correctCount / correctWords.length;
+      if (accuracy >= 0.8) {
         setFeedback({
           type: "success",
-          message: "Great job! You completed the verse!",
+          message: `Great job! You got ${correctCount} out of ${correctWords.length} words correct!`,
         });
         SoundEffects.playSuccess();
       } else {
         setFeedback({
           type: "error",
-          message: "Keep trying! You can reveal the verse if needed.",
+          message: `You got ${correctCount} out of ${correctWords.length} words. Keep trying!`,
         });
         SoundEffects.playError();
       }
@@ -1919,11 +1954,25 @@ function App() {
                 )}
 
                 {practiceMode === "complete" && !showVerseText && (
-                  <div
-                    className="verse-display"
-                    style={{ marginBottom: "20px" }}
-                  >
-                    <div className="verse-text">{blankedVerse}</div>
+                  <div>
+                    <div
+                      style={{
+                        marginBottom: "10px",
+                        padding: "10px",
+                        background: "#f5f1e8",
+                        borderRadius: "8px",
+                        fontSize: "0.9rem",
+                        color: "#5a4d37",
+                      }}
+                    >
+                      Fill in the {missingWords.length} missing word(s) below. Type only the missing words separated by spaces.
+                    </div>
+                    <div
+                      className="verse-display"
+                      style={{ marginBottom: "20px" }}
+                    >
+                      <div className="verse-text">{blankedVerse}</div>
+                    </div>
                   </div>
                 )}
 
@@ -1950,7 +1999,7 @@ function App() {
                       ? "Type or speak the verse here..."
                       : practiceMode === "identify"
                       ? "Enter the scripture reference (e.g., John 3:16)..."
-                      : "Type the complete verse with missing words..."
+                      : `Type only the ${missingWords.length} missing word(s) separated by spaces...`
                   }
                   value={practiceInput}
                   onChange={(e) => setPracticeInput(e.target.value)}
