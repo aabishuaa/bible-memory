@@ -404,6 +404,35 @@ const Icons = {
     )
 };
 
+// Confirmation Modal Component
+function ConfirmationModal({ isOpen, onConfirm, onCancel, title, message, confirmText = "Delete", cancelText = "Cancel", isDangerous = true }) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onCancel}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>{title}</h3>
+                </div>
+                <div className="modal-body">
+                    <p>{message}</p>
+                </div>
+                <div className="modal-footer">
+                    <button className="modal-button modal-button-cancel" onClick={onCancel}>
+                        {cancelText}
+                    </button>
+                    <button
+                        className={`modal-button ${isDangerous ? 'modal-button-danger' : 'modal-button-confirm'}`}
+                        onClick={onConfirm}
+                    >
+                        {confirmText}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // Login Component
 function Login({ onLogin, error }) {
     const [isLoading, setIsLoading] = useState(false);
@@ -712,6 +741,17 @@ function App() {
     const [newVerseRef, setNewVerseRef] = useState('');
     const [prayerFilter, setPrayerFilter] = useState('all'); // all, answered, unanswered
 
+    // Confirmation modal state
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: null,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        isDangerous: true
+    });
+
     const recognitionRef = useRef(null);
 
     useEffect(() => {
@@ -865,24 +905,28 @@ function App() {
 
     const handleDeleteVerse = async (id) => {
         const verse = verses.find(v => v.id === id);
-        const confirmDelete = window.confirm(
-            `Are you sure you want to delete this verse?\n\n${verse?.reference || 'Unknown reference'}\n\nThis action cannot be undone.`
-        );
 
-        if (!confirmDelete) {
-            return;
-        }
-
-        try {
-            const updatedVerses = await FirestoreService.deleteVerse(id);
-            setVerses(updatedVerses);
-            if (practiceVerse?.id === id) {
-                setPracticeVerse(null);
+        setConfirmModal({
+            isOpen: true,
+            title: 'Delete Verse',
+            message: `Are you sure you want to delete this verse?\n\n${verse?.reference || 'Unknown reference'}\n\nThis action cannot be undone.`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            isDangerous: true,
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    const updatedVerses = await FirestoreService.deleteVerse(id);
+                    setVerses(updatedVerses);
+                    if (practiceVerse?.id === id) {
+                        setPracticeVerse(null);
+                    }
+                } catch (error) {
+                    console.error('Error deleting verse:', error);
+                    setError('Failed to delete verse. Please try again.');
+                }
             }
-        } catch (error) {
-            console.error('Error deleting verse:', error);
-            setError('Failed to delete verse. Please try again.');
-        }
+        });
     };
 
     const createBlankedVerse = (text) => {
@@ -1016,20 +1060,23 @@ function App() {
     };
 
     const handleLogout = async () => {
-        const confirmLogout = window.confirm(
-            'Are you sure you want to logout?\n\nYour data is safely stored in the cloud and will be available when you sign in again.'
-        );
-
-        if (!confirmLogout) {
-            return;
-        }
-
-        if (typeof FirebaseAuth !== 'undefined') {
-            await FirebaseAuth.signOut();
-            setUser(null);
-            FirestoreService.setUser(null);
-            setVerses([]);
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: 'Logout',
+            message: 'Are you sure you want to logout?\n\nYour data is safely stored in the cloud and will be available when you sign in again.',
+            confirmText: 'Logout',
+            cancelText: 'Cancel',
+            isDangerous: false,
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                if (typeof FirebaseAuth !== 'undefined') {
+                    await FirebaseAuth.signOut();
+                    setUser(null);
+                    FirestoreService.setUser(null);
+                    setVerses([]);
+                }
+            }
+        });
     };
 
     // Prayer handlers
@@ -1089,24 +1136,28 @@ function App() {
 
     const handleDeletePrayer = async (prayerId) => {
         const prayer = prayers.find(p => p.id === prayerId);
-        const confirmDelete = window.confirm(
-            `Are you sure you want to delete this prayer?\n\n"${prayer?.title || 'Untitled prayer'}"\n\nThis action cannot be undone.`
-        );
 
-        if (!confirmDelete) {
-            return;
-        }
-
-        try {
-            await FirestoreService.deletePrayer(prayerId);
-            const updatedPrayers = await FirestoreService.getPrayers();
-            setPrayers(updatedPrayers);
-            SoundEffects.playClick();
-        } catch (error) {
-            console.error('Error deleting prayer:', error);
-            setError('Failed to delete prayer. Please try again.');
-            SoundEffects.playError();
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: 'Delete Prayer',
+            message: `Are you sure you want to delete this prayer?\n\n"${prayer?.title || 'Untitled prayer'}"\n\nThis action cannot be undone.`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            isDangerous: true,
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await FirestoreService.deletePrayer(prayerId);
+                    const updatedPrayers = await FirestoreService.getPrayers();
+                    setPrayers(updatedPrayers);
+                    SoundEffects.playClick();
+                } catch (error) {
+                    console.error('Error deleting prayer:', error);
+                    setError('Failed to delete prayer. Please try again.');
+                    SoundEffects.playError();
+                }
+            }
+        });
     };
 
     const handleToggleAnswered = async (prayerId) => {
@@ -1810,6 +1861,17 @@ function App() {
                     </div>
                 )}
             </div>
+
+            <ConfirmationModal
+                isOpen={confirmModal.isOpen}
+                onConfirm={confirmModal.onConfirm}
+                onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                confirmText={confirmModal.confirmText}
+                cancelText={confirmModal.cancelText}
+                isDangerous={confirmModal.isDangerous}
+            />
         </div>
     );
 }
