@@ -71,8 +71,9 @@ If you're hosting your app on a custom domain or localhost:
 1. Open `index.html` in a web browser
 2. You should see the login screen
 3. Click "Sign in with Google"
-4. Complete the Google sign-in flow
-5. You should be redirected to the main app
+4. A popup window will open for Google sign-in
+5. Complete the sign-in process in the popup
+6. The popup will close and you'll be logged into the main app
 
 ## Troubleshooting
 
@@ -84,9 +85,10 @@ If you're hosting your app on a custom domain or localhost:
 - Go to Firebase Console > Authentication > Settings > Authorized domains
 - Add your domain to the list
 
-### Sign-in Redirect Issues
-- The app uses redirect-based authentication to avoid Cross-Origin-Opener-Policy (COOP) errors
-- The page will redirect to Google for sign-in and then back to your app
+### Sign-in Popup Issues
+- The app uses popup-based authentication (no redirects, no page reloads)
+- If popups are blocked by your browser, allow popups for this site
+- The COOP header is set to `same-origin-allow-popups` to enable popup communication
 - Make sure your domain is listed in Firebase Console > Authentication > Authorized domains
 
 ### Console Errors
