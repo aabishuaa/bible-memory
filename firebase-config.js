@@ -40,21 +40,41 @@ function initializeFirebase() {
 
 // Auth service functions
 const FirebaseAuth = {
-    // Sign in with Google popup
+    // Sign in with Google using redirect (avoids COOP errors)
     signInWithGoogle: async () => {
         try {
-            const result = await auth.signInWithPopup(googleProvider);
-            return {
-                success: true,
-                user: {
-                    uid: result.user.uid,
-                    email: result.user.email,
-                    displayName: result.user.displayName,
-                    photoURL: result.user.photoURL
-                }
-            };
+            // Use redirect instead of popup to avoid Cross-Origin-Opener-Policy issues
+            await auth.signInWithRedirect(googleProvider);
+            // Note: This will redirect the page, so no return value here
+            // The result is handled by getRedirectResult on page load
+            return { success: true };
         } catch (error) {
             console.error('Error signing in with Google:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    },
+
+    // Handle redirect result after sign-in
+    handleRedirectResult: async () => {
+        try {
+            const result = await auth.getRedirectResult();
+            if (result.user) {
+                return {
+                    success: true,
+                    user: {
+                        uid: result.user.uid,
+                        email: result.user.email,
+                        displayName: result.user.displayName,
+                        photoURL: result.user.photoURL
+                    }
+                };
+            }
+            return { success: false };
+        } catch (error) {
+            console.error('Error handling redirect result:', error);
             return {
                 success: false,
                 error: error.message
