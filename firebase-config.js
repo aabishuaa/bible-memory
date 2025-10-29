@@ -18,17 +18,32 @@ let db = null;
 // This will be called after Firebase scripts are loaded
 function initializeFirebase() {
     try {
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
+        // Check if Firebase is already initialized
+        if (firebase.apps.length === 0) {
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+        }
 
-        // Initialize Firebase Authentication
-        auth = firebase.auth();
+        // Initialize Firebase Authentication if not already done
+        if (!auth) {
+            auth = firebase.auth();
 
-        // Initialize Google Auth Provider
-        googleProvider = new firebase.auth.GoogleAuthProvider();
+            // Set auth persistence to LOCAL (persist across browser sessions)
+            auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+                .catch((error) => {
+                    console.error('Error setting auth persistence:', error);
+                });
+        }
 
-        // Initialize Firestore
-        db = firebase.firestore();
+        // Initialize Google Auth Provider if not already done
+        if (!googleProvider) {
+            googleProvider = new firebase.auth.GoogleAuthProvider();
+        }
+
+        // Initialize Firestore if not already done
+        if (!db) {
+            db = firebase.firestore();
+        }
 
         console.log('Firebase initialized successfully');
         return true;
