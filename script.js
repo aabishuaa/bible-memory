@@ -591,6 +591,32 @@ const Icons = {
   ),
 };
 
+// Alert Modal Component (for notifications)
+function AlertModal({ isOpen, onClose, title, message, buttonText = "OK" }) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>{title}</h3>
+                </div>
+                <div className="modal-body">
+                    <p>{message}</p>
+                </div>
+                <div className="modal-footer">
+                    <button
+                        className="modal-button modal-button-confirm"
+                        onClick={onClose}
+                    >
+                        {buttonText}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // Confirmation Modal Component
 function ConfirmationModal({ isOpen, onConfirm, onCancel, title, message, confirmText = "Delete", cancelText = "Cancel", isDangerous = true }) {
     if (!isOpen) return null;
@@ -623,12 +649,22 @@ function ConfirmationModal({ isOpen, onConfirm, onCancel, title, message, confir
 // Login Component
 function Login({ onLogin, error }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [alertModal, setAlertModal] = useState({ isOpen: false, title: "", message: "" });
+
+  const showAlert = (title, message) => {
+    setAlertModal({ isOpen: true, title, message });
+  };
+
+  const closeAlert = () => {
+    setAlertModal({ isOpen: false, title: "", message: "" });
+  };
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
       if (typeof FirebaseAuth === "undefined") {
-        alert(
+        showAlert(
+          "Configuration Error",
           "Firebase is not configured. Please add your Firebase credentials to firebase-config.js"
         );
         setIsLoading(false);
@@ -640,53 +676,61 @@ function Login({ onLogin, error }) {
       await FirebaseAuth.signInWithGoogle();
       // Note: Page will redirect, so code after this won't execute
     } catch (error) {
-      alert("Sign in error: " + error.message);
+      showAlert("Sign In Error", error.message);
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-header">
-          <Icons.BookOpen />
-          <h1>Scripture Memory</h1>
-          <p>Memorize and meditate on God's Word</p>
-        </div>
+    <>
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={closeAlert}
+        title={alertModal.title}
+        message={alertModal.message}
+      />
+      <div className="login-container">
+        <div className="login-card">
+          <div className="login-header">
+            <Icons.BookOpen />
+            <h1>Scripture Memory</h1>
+            <p>Memorize and meditate on God's Word</p>
+          </div>
 
-        <div className="login-content">
-          <h2>Welcome</h2>
-          <p>Sign in to save your verses and track your progress</p>
+          <div className="login-content">
+            <h2>Welcome</h2>
+            <p>Sign in to save your verses and track your progress</p>
 
-          {error && <div className="error">{error}</div>}
+            {error && <div className="error">{error}</div>}
 
-          <button
-            className="btn btn-google"
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <div className="spinner-small"></div>
-                Signing in...
-              </>
-            ) : (
-              <>
-                <Icons.Google />
-                Sign in with Google
-              </>
-            )}
-          </button>
+            <button
+              className="btn btn-google"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <div className="spinner-small"></div>
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  <Icons.Google />
+                  Sign in with Google
+                </>
+              )}
+            </button>
 
-          <div className="login-footer">
-            <p>
-              Thou wilt keep him in perfect peace, whose mind is stayed on thee.
-              Isaiah 26:3
-            </p>
+            <div className="login-footer">
+              <p>
+                Thou wilt keep him in perfect peace, whose mind is stayed on thee.
+                Isaiah 26:3
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -1058,48 +1102,90 @@ function App() {
   const recognitionRef = useRef(null);
 
   useEffect(() => {
-    // Initialize Firebase
-    if (typeof initializeFirebase !== "undefined") {
-      initializeFirebase();
-    }
+    let unsubscribe;
+    let isProcessingRedirect = false;
 
-    // Handle redirect result from Google Sign-In (if returning from redirect)
-    if (typeof FirebaseAuth !== "undefined") {
-      FirebaseAuth.handleRedirectResult().catch((error) => {
-        console.error("Error handling redirect:", error);
-      });
-    }
-
-    // Listen for authentication state changes
-    if (
-      typeof FirebaseAuth !== "undefined" &&
-      typeof FirestoreService !== "undefined"
-    ) {
-      const unsubscribe = FirebaseAuth.onAuthStateChanged(async (userData) => {
-        setUser(userData);
-        if (userData) {
-          // Set user in Firestore service
-          FirestoreService.setUser(userData.uid);
-          // Load user's verses and prayers from Firestore
-          try {
-            const userVerses = await FirestoreService.getVerses();
-            setVerses(userVerses);
-
-            const userPrayers = await FirestoreService.getPrayers();
-            setPrayers(userPrayers);
-          } catch (error) {
-            console.error("Error loading data:", error);
-            setError("Failed to load data. Please refresh the page.");
-          }
+    const initAuth = async () => {
+      // Initialize Firebase
+      if (typeof initializeFirebase !== "undefined") {
+        const initialized = initializeFirebase();
+        if (!initialized) {
+          console.error("Failed to initialize Firebase");
+          setAuthLoading(false);
+          setError("Failed to initialize. Please refresh the page.");
+          return;
         }
-        setAuthLoading(false);
-      });
+      }
 
-      // Cleanup subscription
-      return () => unsubscribe();
-    } else {
-      setAuthLoading(false);
-    }
+      // Set up authentication state listener FIRST
+      // This ensures we catch the auth state change when redirect completes
+      if (
+        typeof FirebaseAuth !== "undefined" &&
+        typeof FirestoreService !== "undefined"
+      ) {
+        unsubscribe = FirebaseAuth.onAuthStateChanged(async (userData) => {
+          // Don't process if we're still handling the redirect
+          if (isProcessingRedirect) {
+            console.log("Still processing redirect, skipping auth state change");
+            return;
+          }
+
+          console.log("Auth state changed:", userData ? "User logged in" : "No user");
+          setUser(userData);
+
+          if (userData) {
+            // Set user in Firestore service
+            FirestoreService.setUser(userData.uid);
+            // Load user's verses and prayers from Firestore
+            try {
+              const userVerses = await FirestoreService.getVerses();
+              setVerses(userVerses);
+
+              const userPrayers = await FirestoreService.getPrayers();
+              setPrayers(userPrayers);
+            } catch (error) {
+              console.error("Error loading data:", error);
+              setError("Failed to load data. Please refresh the page.");
+            }
+          }
+          setAuthLoading(false);
+        });
+
+        // THEN handle redirect result from Google Sign-In (if returning from redirect)
+        // This must happen AFTER setting up the listener
+        try {
+          isProcessingRedirect = true;
+          const result = await FirebaseAuth.handleRedirectResult();
+          isProcessingRedirect = false;
+
+          if (result && result.error) {
+            console.error("Error handling redirect:", result.error);
+            setError("Sign in failed: " + result.error);
+            setAuthLoading(false);
+          } else if (result && result.success) {
+            console.log("Successfully handled redirect result");
+          }
+        } catch (error) {
+          isProcessingRedirect = false;
+          console.error("Error handling redirect:", error);
+          setError("Sign in failed. Please try again.");
+          setAuthLoading(false);
+        }
+      } else {
+        console.error("Firebase Auth or Firestore not available");
+        setAuthLoading(false);
+        setError("Firebase not configured properly.");
+      }
+    };
+
+    initAuth();
+
+    // Cleanup subscription
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   useEffect(() => {
