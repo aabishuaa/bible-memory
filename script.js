@@ -1103,7 +1103,6 @@ function App() {
 
   useEffect(() => {
     let unsubscribe;
-    let isProcessingRedirect = false;
 
     const initAuth = async () => {
       // Initialize Firebase
@@ -1117,19 +1116,32 @@ function App() {
         }
       }
 
-      // Set up authentication state listener FIRST
-      // This ensures we catch the auth state change when redirect completes
+      // Handle redirect result from Google Sign-In FIRST (if returning from redirect)
+      // This completes before the auth state listener processes the user
+      if (typeof FirebaseAuth !== "undefined") {
+        try {
+          const result = await FirebaseAuth.handleRedirectResult();
+          if (result && result.error) {
+            console.error("Error handling redirect:", result.error);
+            setError("Sign in failed: " + result.error);
+            setAuthLoading(false);
+          } else if (result && result.success) {
+            console.log("Successfully handled redirect result");
+          }
+        } catch (error) {
+          console.error("Error handling redirect:", error);
+          setError("Sign in failed. Please try again.");
+          setAuthLoading(false);
+        }
+      }
+
+      // Set up authentication state listener
+      // This will fire with current auth state (whether from redirect or existing session)
       if (
         typeof FirebaseAuth !== "undefined" &&
         typeof FirestoreService !== "undefined"
       ) {
         unsubscribe = FirebaseAuth.onAuthStateChanged(async (userData) => {
-          // Don't process if we're still handling the redirect
-          if (isProcessingRedirect) {
-            console.log("Still processing redirect, skipping auth state change");
-            return;
-          }
-
           console.log("Auth state changed:", userData ? "User logged in" : "No user");
           setUser(userData);
 
@@ -1150,27 +1162,6 @@ function App() {
           }
           setAuthLoading(false);
         });
-
-        // THEN handle redirect result from Google Sign-In (if returning from redirect)
-        // This must happen AFTER setting up the listener
-        try {
-          isProcessingRedirect = true;
-          const result = await FirebaseAuth.handleRedirectResult();
-          isProcessingRedirect = false;
-
-          if (result && result.error) {
-            console.error("Error handling redirect:", result.error);
-            setError("Sign in failed: " + result.error);
-            setAuthLoading(false);
-          } else if (result && result.success) {
-            console.log("Successfully handled redirect result");
-          }
-        } catch (error) {
-          isProcessingRedirect = false;
-          console.error("Error handling redirect:", error);
-          setError("Sign in failed. Please try again.");
-          setAuthLoading(false);
-        }
       } else {
         console.error("Firebase Auth or Firestore not available");
         setAuthLoading(false);
