@@ -1,5 +1,4 @@
 # API Configuration (contains sensitive keys)
-config.js
 
 # Environment files
 .env
