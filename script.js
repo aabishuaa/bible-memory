@@ -1102,48 +1102,49 @@ function App() {
   const recognitionRef = useRef(null);
 
   useEffect(() => {
-    // Initialize Firebase
-    if (typeof initializeFirebase !== "undefined") {
-      initializeFirebase();
-    }
+    const init = async () => {
+      // Initialize Firebase
+      if (typeof initializeFirebase !== "undefined") {
+        initializeFirebase();
+      }
 
-    // Handle redirect result from Google Sign-In (if returning from redirect)
-    if (typeof FirebaseAuth !== "undefined") {
-      FirebaseAuth.handleRedirectResult().catch((error) => {
-        console.error("Error handling redirect:", error);
-      });
-    }
+      if (typeof FirebaseAuth === "undefined") {
+        setAuthLoading(false);
+        return;
+      }
 
-    // Listen for authentication state changes
-    if (
-      typeof FirebaseAuth !== "undefined" &&
-      typeof FirestoreService !== "undefined"
-    ) {
+      try {
+        // Handle redirect result FIRST - only once at startup
+        await FirebaseAuth.handleRedirectResult();
+      } catch (err) {
+        console.error("Redirect error:", err);
+      }
+
+      // Now listen for auth state changes
       const unsubscribe = FirebaseAuth.onAuthStateChanged(async (userData) => {
-        setUser(userData);
-        if (userData) {
-          // Set user in Firestore service
-          FirestoreService.setUser(userData.uid);
-          // Load user's verses and prayers from Firestore
-          try {
-            const userVerses = await FirestoreService.getVerses();
-            setVerses(userVerses);
+        setUser(userData || null);
+        setAuthLoading(false);
 
-            const userPrayers = await FirestoreService.getPrayers();
+        if (userData && typeof FirestoreService !== "undefined") {
+          FirestoreService.setUser(userData.uid);
+          try {
+            const [userVerses, userPrayers] = await Promise.all([
+              FirestoreService.getVerses(),
+              FirestoreService.getPrayers(),
+            ]);
+            setVerses(userVerses);
             setPrayers(userPrayers);
-          } catch (error) {
-            console.error("Error loading data:", error);
+          } catch (err) {
+            console.error("Data load error:", err);
             setError("Failed to load data. Please refresh the page.");
           }
         }
-        setAuthLoading(false);
       });
 
-      // Cleanup subscription
       return () => unsubscribe();
-    } else {
-      setAuthLoading(false);
-    }
+    };
+
+    init();
   }, []);
 
   useEffect(() => {
