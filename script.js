@@ -671,10 +671,14 @@ function Login({ onLogin, error }) {
         return;
       }
 
-      // signInWithGoogle now uses redirect, which will reload the page
-      // The user will be automatically logged in when they return
-      await FirebaseAuth.signInWithGoogle();
-      // Note: Page will redirect, so code after this won't execute
+      // signInWithGoogle now uses popup (no redirects, no page reload)
+      // The user will be automatically logged in via onAuthStateChanged
+      const result = await FirebaseAuth.signInWithGoogle();
+      if (!result.success) {
+        showAlert("Sign In Error", result.error || "Failed to sign in");
+        setIsLoading(false);
+      }
+      // Note: onAuthStateChanged will handle the successful login
     } catch (error) {
       showAlert("Sign In Error", error.message);
       setIsLoading(false);
@@ -1113,14 +1117,7 @@ function App() {
         return;
       }
 
-      try {
-        // Handle redirect result FIRST - only once at startup
-        await FirebaseAuth.handleRedirectResult();
-      } catch (err) {
-        console.error("Redirect error:", err);
-      }
-
-      // Now listen for auth state changes
+      // Listen for auth state changes (no need to handle redirect result with popup auth)
       const unsubscribe = FirebaseAuth.onAuthStateChanged(async (userData) => {
         setUser(userData || null);
         setAuthLoading(false);
