@@ -84,9 +84,10 @@ If you're hosting your app on a custom domain or localhost:
 - Go to Firebase Console > Authentication > Settings > Authorized domains
 - Add your domain to the list
 
-### Sign-in Popup Blocked
-- Check if your browser is blocking popups
-- Allow popups for your domain
+### Sign-in Redirect Issues
+- The app uses redirect-based authentication to avoid Cross-Origin-Opener-Policy (COOP) errors
+- The page will redirect to Google for sign-in and then back to your app
+- Make sure your domain is listed in Firebase Console > Authentication > Authorized domains
 
 ### Console Errors
 - Open browser developer tools (F12)

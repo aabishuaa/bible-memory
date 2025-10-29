@@ -635,15 +635,12 @@ function Login({ onLogin, error }) {
         return;
       }
 
-      const result = await FirebaseAuth.signInWithGoogle();
-      if (result.success) {
-        onLogin(result.user);
-      } else {
-        alert("Sign in failed: " + result.error);
-      }
+      // signInWithGoogle now uses redirect, which will reload the page
+      // The user will be automatically logged in when they return
+      await FirebaseAuth.signInWithGoogle();
+      // Note: Page will redirect, so code after this won't execute
     } catch (error) {
       alert("Sign in error: " + error.message);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -1064,6 +1061,13 @@ function App() {
     // Initialize Firebase
     if (typeof initializeFirebase !== "undefined") {
       initializeFirebase();
+    }
+
+    // Handle redirect result from Google Sign-In (if returning from redirect)
+    if (typeof FirebaseAuth !== "undefined") {
+      FirebaseAuth.handleRedirectResult().catch((error) => {
+        console.error("Error handling redirect:", error);
+      });
     }
 
     // Listen for authentication state changes
