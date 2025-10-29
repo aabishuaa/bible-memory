@@ -1102,48 +1102,60 @@ function App() {
   const recognitionRef = useRef(null);
 
   useEffect(() => {
-    // Initialize Firebase
-    if (typeof initializeFirebase !== "undefined") {
-      initializeFirebase();
-    }
+    let unsubscribe;
 
-    // Handle redirect result from Google Sign-In (if returning from redirect)
-    if (typeof FirebaseAuth !== "undefined") {
-      FirebaseAuth.handleRedirectResult().catch((error) => {
-        console.error("Error handling redirect:", error);
-      });
-    }
+    const initAuth = async () => {
+      // Initialize Firebase
+      if (typeof initializeFirebase !== "undefined") {
+        initializeFirebase();
+      }
 
-    // Listen for authentication state changes
-    if (
-      typeof FirebaseAuth !== "undefined" &&
-      typeof FirestoreService !== "undefined"
-    ) {
-      const unsubscribe = FirebaseAuth.onAuthStateChanged(async (userData) => {
-        setUser(userData);
-        if (userData) {
-          // Set user in Firestore service
-          FirestoreService.setUser(userData.uid);
-          // Load user's verses and prayers from Firestore
-          try {
-            const userVerses = await FirestoreService.getVerses();
-            setVerses(userVerses);
-
-            const userPrayers = await FirestoreService.getPrayers();
-            setPrayers(userPrayers);
-          } catch (error) {
-            console.error("Error loading data:", error);
-            setError("Failed to load data. Please refresh the page.");
-          }
+      // Handle redirect result from Google Sign-In (if returning from redirect)
+      if (typeof FirebaseAuth !== "undefined") {
+        try {
+          await FirebaseAuth.handleRedirectResult();
+        } catch (error) {
+          console.error("Error handling redirect:", error);
         }
-        setAuthLoading(false);
-      });
+      }
 
-      // Cleanup subscription
-      return () => unsubscribe();
-    } else {
-      setAuthLoading(false);
-    }
+      // Listen for authentication state changes
+      if (
+        typeof FirebaseAuth !== "undefined" &&
+        typeof FirestoreService !== "undefined"
+      ) {
+        unsubscribe = FirebaseAuth.onAuthStateChanged(async (userData) => {
+          setUser(userData);
+          if (userData) {
+            // Set user in Firestore service
+            FirestoreService.setUser(userData.uid);
+            // Load user's verses and prayers from Firestore
+            try {
+              const userVerses = await FirestoreService.getVerses();
+              setVerses(userVerses);
+
+              const userPrayers = await FirestoreService.getPrayers();
+              setPrayers(userPrayers);
+            } catch (error) {
+              console.error("Error loading data:", error);
+              setError("Failed to load data. Please refresh the page.");
+            }
+          }
+          setAuthLoading(false);
+        });
+      } else {
+        setAuthLoading(false);
+      }
+    };
+
+    initAuth();
+
+    // Cleanup subscription
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   useEffect(() => {
