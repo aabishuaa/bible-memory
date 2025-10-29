@@ -24,6 +24,12 @@ function initializeFirebase() {
         // Initialize Firebase Authentication
         auth = firebase.auth();
 
+        // Set auth persistence to LOCAL (keeps users logged in after refresh)
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+            .catch((error) => {
+                console.error('Error setting auth persistence:', error);
+            });
+
         // Initialize Google Auth Provider
         googleProvider = new firebase.auth.GoogleAuthProvider();
 
