@@ -591,6 +591,32 @@ const Icons = {
   ),
 };
 
+// Alert Modal Component (for notifications)
+function AlertModal({ isOpen, onClose, title, message, buttonText = "OK" }) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h3>{title}</h3>
+                </div>
+                <div className="modal-body">
+                    <p>{message}</p>
+                </div>
+                <div className="modal-footer">
+                    <button
+                        className="modal-button modal-button-confirm"
+                        onClick={onClose}
+                    >
+                        {buttonText}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // Confirmation Modal Component
 function ConfirmationModal({ isOpen, onConfirm, onCancel, title, message, confirmText = "Delete", cancelText = "Cancel", isDangerous = true }) {
     if (!isOpen) return null;
@@ -623,12 +649,22 @@ function ConfirmationModal({ isOpen, onConfirm, onCancel, title, message, confir
 // Login Component
 function Login({ onLogin, error }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [alertModal, setAlertModal] = useState({ isOpen: false, title: "", message: "" });
+
+  const showAlert = (title, message) => {
+    setAlertModal({ isOpen: true, title, message });
+  };
+
+  const closeAlert = () => {
+    setAlertModal({ isOpen: false, title: "", message: "" });
+  };
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
       if (typeof FirebaseAuth === "undefined") {
-        alert(
+        showAlert(
+          "Configuration Error",
           "Firebase is not configured. Please add your Firebase credentials to firebase-config.js"
         );
         setIsLoading(false);
@@ -640,53 +676,61 @@ function Login({ onLogin, error }) {
       await FirebaseAuth.signInWithGoogle();
       // Note: Page will redirect, so code after this won't execute
     } catch (error) {
-      alert("Sign in error: " + error.message);
+      showAlert("Sign In Error", error.message);
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-header">
-          <Icons.BookOpen />
-          <h1>Scripture Memory</h1>
-          <p>Memorize and meditate on God's Word</p>
-        </div>
+    <>
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={closeAlert}
+        title={alertModal.title}
+        message={alertModal.message}
+      />
+      <div className="login-container">
+        <div className="login-card">
+          <div className="login-header">
+            <Icons.BookOpen />
+            <h1>Scripture Memory</h1>
+            <p>Memorize and meditate on God's Word</p>
+          </div>
 
-        <div className="login-content">
-          <h2>Welcome</h2>
-          <p>Sign in to save your verses and track your progress</p>
+          <div className="login-content">
+            <h2>Welcome</h2>
+            <p>Sign in to save your verses and track your progress</p>
 
-          {error && <div className="error">{error}</div>}
+            {error && <div className="error">{error}</div>}
 
-          <button
-            className="btn btn-google"
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <div className="spinner-small"></div>
-                Signing in...
-              </>
-            ) : (
-              <>
-                <Icons.Google />
-                Sign in with Google
-              </>
-            )}
-          </button>
+            <button
+              className="btn btn-google"
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <div className="spinner-small"></div>
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  <Icons.Google />
+                  Sign in with Google
+                </>
+              )}
+            </button>
 
-          <div className="login-footer">
-            <p>
-              Thou wilt keep him in perfect peace, whose mind is stayed on thee.
-              Isaiah 26:3
-            </p>
+            <div className="login-footer">
+              <p>
+                Thou wilt keep him in perfect peace, whose mind is stayed on thee.
+                Isaiah 26:3
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

@@ -5,7 +5,7 @@
 // Check if AppConfig is loaded
 if (typeof AppConfig === 'undefined' || !AppConfig.firebase) {
   console.error('Firebase configuration not found. Please create config.js from config.example.js');
-  alert('Firebase configuration missing. Please set up config.js file. See config.example.js for instructions.');
+  // Error is handled by the Login component with a custom modal
 }
 
 const firebaseConfig = AppConfig?.firebase || {};
