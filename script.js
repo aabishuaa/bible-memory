@@ -1104,6 +1104,16 @@ function App() {
   const [newVerseRef, setNewVerseRef] = useState("");
   const [prayerFilter, setPrayerFilter] = useState("all"); // all, answered, unanswered
 
+  // Confirmation modal state
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    confirmText: "Confirm",
+    isDangerous: false,
+  });
+
   const recognitionRef = useRef(null);
 
   useEffect(() => {
@@ -1262,26 +1272,29 @@ function App() {
 
   const handleDeleteVerse = async (id) => {
     const verse = verses.find((v) => v.id === id);
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete this verse?\n\n${
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Verse",
+      message: `Are you sure you want to delete this verse?\n\n${
         verse?.reference || "Unknown reference"
-      }\n\nThis action cannot be undone.`
-    );
-
-    if (!confirmDelete) {
-      return;
-    }
-
-    try {
-      const updatedVerses = await FirestoreService.deleteVerse(id);
-      setVerses(updatedVerses);
-      if (practiceVerse?.id === id) {
-        setPracticeVerse(null);
-      }
-    } catch (error) {
-      console.error("Error deleting verse:", error);
-      setError("Failed to delete verse. Please try again.");
-    }
+      }\n\nThis action cannot be undone.`,
+      confirmText: "Delete",
+      isDangerous: true,
+      onConfirm: async () => {
+        setConfirmModal({ ...confirmModal, isOpen: false });
+        try {
+          const updatedVerses = await FirestoreService.deleteVerse(id);
+          setVerses(updatedVerses);
+          if (practiceVerse?.id === id) {
+            setPracticeVerse(null);
+          }
+        } catch (error) {
+          console.error("Error deleting verse:", error);
+          setError("Failed to delete verse. Please try again.");
+        }
+      },
+    });
   };
 
   const createBlankedVerse = (text) => {
@@ -1325,6 +1338,13 @@ function App() {
         setMissingWords(missing);
       }
     }
+  };
+
+  const exitPractice = () => {
+    setPracticeVerse(null);
+    setPracticeInput("");
+    setFeedback(null);
+    setShowVerseText(false);
   };
 
   const toggleRecording = () => {
@@ -1473,20 +1493,23 @@ function App() {
   };
 
   const handleLogout = async () => {
-    const confirmLogout = window.confirm(
-      "Are you sure you want to logout?\n\nYour data is safely stored in the cloud and will be available when you sign in again."
-    );
-
-    if (!confirmLogout) {
-      return;
-    }
-
-    if (typeof FirebaseAuth !== "undefined") {
-      await FirebaseAuth.signOut();
-      setUser(null);
-      FirestoreService.setUser(null);
-      setVerses([]);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: "Logout",
+      message:
+        "Are you sure you want to logout?\n\nYour data is safely stored in the cloud and will be available when you sign in again.",
+      confirmText: "Logout",
+      isDangerous: false,
+      onConfirm: async () => {
+        setConfirmModal({ ...confirmModal, isOpen: false });
+        if (typeof FirebaseAuth !== "undefined") {
+          await FirebaseAuth.signOut();
+          setUser(null);
+          FirestoreService.setUser(null);
+          setVerses([]);
+        }
+      },
+    });
   };
 
   // Prayer handlers
@@ -1546,26 +1569,29 @@ function App() {
 
   const handleDeletePrayer = async (prayerId) => {
     const prayer = prayers.find((p) => p.id === prayerId);
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete this prayer?\n\n"${
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Prayer",
+      message: `Are you sure you want to delete this prayer?\n\n"${
         prayer?.title || "Untitled prayer"
-      }"\n\nThis action cannot be undone.`
-    );
-
-    if (!confirmDelete) {
-      return;
-    }
-
-    try {
-      await FirestoreService.deletePrayer(prayerId);
-      const updatedPrayers = await FirestoreService.getPrayers();
-      setPrayers(updatedPrayers);
-      SoundEffects.playClick();
-    } catch (error) {
-      console.error("Error deleting prayer:", error);
-      setError("Failed to delete prayer. Please try again.");
-      SoundEffects.playError();
-    }
+      }"\n\nThis action cannot be undone.`,
+      confirmText: "Delete",
+      isDangerous: true,
+      onConfirm: async () => {
+        setConfirmModal({ ...confirmModal, isOpen: false });
+        try {
+          await FirestoreService.deletePrayer(prayerId);
+          const updatedPrayers = await FirestoreService.getPrayers();
+          setPrayers(updatedPrayers);
+          SoundEffects.playClick();
+        } catch (error) {
+          console.error("Error deleting prayer:", error);
+          setError("Failed to delete prayer. Please try again.");
+          SoundEffects.playError();
+        }
+      },
+    });
   };
 
   const handleToggleAnswered = async (prayerId) => {
@@ -1639,8 +1665,18 @@ function App() {
 
   // Main app content
   return (
-    <div className="container">
-      <div className="header">
+    <>
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        isDangerous={confirmModal.isDangerous}
+      />
+      <div className="container">
+        <div className="header">
         <div className="header-content">
           <div>
             <h1>Scripture Memory</h1>
@@ -2055,6 +2091,9 @@ function App() {
                   <button className="btn btn-secondary" onClick={startPractice}>
                     <Icons.Shuffle /> Next Verse
                   </button>
+                  <button className="btn btn-secondary" onClick={exitPractice}>
+                    <Icons.X /> Exit Practice
+                  </button>
                 </div>
               </div>
             )}
@@ -2424,6 +2463,7 @@ function App() {
         )}
       </div>
     </div>
+    </>
   );
 }
 
