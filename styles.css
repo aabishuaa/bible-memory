@@ -959,6 +959,14 @@ body {
     box-shadow: 0 4px 15px rgba(200, 90, 84, 0.2);
 }
 
+.feedback.warning {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    color: #92400e;
+    border: 2px solid #fcd34d;
+    animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
+}
+
 .voice-controls {
     display: flex;
     gap: 10px;

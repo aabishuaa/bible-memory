@@ -1388,18 +1388,60 @@ function App() {
         SoundEffects.playError();
       }
     } else if (practiceMode === "identify") {
+      // Parse scripture reference into components
+      const parseReference = (ref) => {
+        // Match pattern: "Book Chapter:Verse" or "# Book Chapter:Verse"
+        const match = ref.match(/^(\d*\s*[a-z\s]+?)\s+(\d+):(\d+(?:-\d+)?)/i);
+        if (match) {
+          return {
+            book: match[1].trim().toLowerCase(),
+            chapter: match[2],
+            verse: match[3]
+          };
+        }
+        // Try to at least extract the book name if no match
+        const bookMatch = ref.match(/^(\d*\s*[a-z\s]+)/i);
+        return {
+          book: bookMatch ? bookMatch[1].trim().toLowerCase() : ref.toLowerCase(),
+          chapter: null,
+          verse: null
+        };
+      };
+
+      const correctParts = parseReference(practiceVerse.reference);
+      const userParts = parseReference(userText);
+
+      // Check if user got the complete reference correct
       const correctRef = practiceVerse.reference.toLowerCase().trim();
       if (
         userText.includes(correctRef.toLowerCase()) ||
-        correctRef.includes(userText) ||
-        calculateSimilarity(userText, correctRef) > 0.7
+        calculateSimilarity(userText, correctRef) > 0.85
       ) {
         setFeedback({
           type: "success",
           message: "Correct! You identified the reference!",
         });
         SoundEffects.playSuccess();
-      } else {
+      }
+      // Check if user got just the book right
+      else if (userParts.book === correctParts.book && !userParts.chapter) {
+        setFeedback({
+          type: "warning",
+          message: `Right book! But which chapter and verse?`,
+        });
+        SoundEffects.playError();
+      }
+      // Check if user got book and chapter but not verse
+      else if (userParts.book === correctParts.book &&
+               userParts.chapter === correctParts.chapter &&
+               !userParts.verse) {
+        setFeedback({
+          type: "warning",
+          message: `Right book and chapter! But which verse?`,
+        });
+        SoundEffects.playError();
+      }
+      else {
         setFeedback({
           type: "error",
           message: `Not quite. The reference is ${practiceVerse.reference}`,
