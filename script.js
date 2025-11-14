@@ -1143,6 +1143,7 @@ function App() {
   const [activeTab, setActiveTab] = useState("search");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentVerse, setCurrentVerse] = useState(null);
+  const [searchVerses, setSearchVerses] = useState([]); // Parsed verses for search tab
   const [verses, setVerses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -1283,10 +1284,58 @@ function App() {
     try {
       const verse = await BibleAPI.fetchVerse(searchQuery, "KJV");
       setCurrentVerse(verse);
+
+      // Parse the text into individual verses
+      const text = verse.text;
+      const reference = verse.reference;
+
+      // Extract verse numbers from the reference (e.g., "John 3:16-21" -> 16 to 21)
+      const refMatch = reference.match(/(\d+):(\d+)(?:-(\d+))?/);
+
+      if (refMatch) {
+        const startVerse = parseInt(refMatch[2]);
+        const endVerse = refMatch[3] ? parseInt(refMatch[3]) : startVerse;
+
+        // Split the text by verse patterns
+        // The text might have verse numbers or we split by sentences
+        const verses = [];
+        const sentences = text.split(/(?<=[.!?])\s+/);
+        const versesPerSentence = Math.ceil(sentences.length / (endVerse - startVerse + 1));
+
+        for (let i = startVerse; i <= endVerse; i++) {
+          const sentenceIndex = (i - startVerse) * versesPerSentence;
+          const verseText = sentences.slice(sentenceIndex, sentenceIndex + versesPerSentence).join(" ");
+
+          if (verseText) {
+            verses.push({
+              verseNumber: i.toString(),
+              text: verseText.trim(),
+            });
+          }
+        }
+
+        // If splitting didn't work well, just put all text in one verse
+        if (verses.length === 0 || verses.every(v => !v.text)) {
+          verses.push({
+            verseNumber: startVerse.toString() + (endVerse > startVerse ? "-" + endVerse : ""),
+            text: text,
+          });
+        }
+
+        setSearchVerses(verses);
+      } else {
+        // Single verse or couldn't parse - just add as one verse
+        setSearchVerses([{
+          verseNumber: "1",
+          text: text,
+        }]);
+      }
+
       SoundEffects.playSuccess();
     } catch (err) {
       setError(err.message);
       setCurrentVerse(null);
+      setSearchVerses([]);
       SoundEffects.playError();
     } finally {
       setLoading(false);
@@ -2188,8 +2237,7 @@ function App() {
             {currentVerse && !loading && (
               <div>
                 <div className="verse-display">
-                  <div className="verse-text">{currentVerse.text}</div>
-                  <div className="verse-reference">
+                  <div className="verse-reference" style={{ marginBottom: "16px" }}>
                     <Icons.Book />
                     {currentVerse.reference}
                     <span
@@ -2204,6 +2252,22 @@ function App() {
                     >
                       {currentVerse.version}
                     </span>
+                  </div>
+                  <div className="verse-text">
+                    {searchVerses.map((verse) => (
+                      <div key={verse.verseNumber} style={{ marginBottom: "10px" }}>
+                        <span className="verse-number" style={{
+                          fontWeight: "bold",
+                          color: "#5a4d37",
+                          marginRight: "8px",
+                          fontSize: "0.9em",
+                          verticalAlign: "super",
+                        }}>
+                          {verse.verseNumber}
+                        </span>
+                        <span>{verse.text}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 <div className="verse-actions">
