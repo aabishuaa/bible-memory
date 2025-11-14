@@ -1856,75 +1856,66 @@ function App() {
     }
   };
 
-  const handleTextSelection = () => {
-    const selection = window.getSelection();
-    const selectedText = selection.toString().trim();
+  // Verse-level highlighting (much simpler!)
+  const [selectedVerseForNotes, setSelectedVerseForNotes] = useState(null);
 
-    if (selectedText.length > 0) {
-      // Get the selected range
-      const range = selection.getRangeAt(0);
-      const container = range.commonAncestorContainer.parentElement;
+  const toggleVerseHighlight = (verseNumber) => {
+    const existingHighlight = studyHighlights.find(h => h.verseNumber === verseNumber);
 
-      // Check if selection is within a verse
-      if (container && container.closest(".study-verse")) {
-        const verseElement = container.closest(".study-verse");
-        const verseNumber = verseElement.getAttribute("data-verse-number");
-
-        // Calculate indices relative to the verse text
-        const verseText = verseElement.textContent.replace(/^\d+\s+/, ""); // Remove verse number
-        const startIndex = verseText.indexOf(selectedText);
-
-        if (startIndex !== -1) {
-          setSelectedText({
-            text: selectedText,
-            verseNumber: verseNumber,
-            startIndex: startIndex,
-            endIndex: startIndex + selectedText.length,
-          });
-          setShowNoteForm(false);
-        }
+    if (existingHighlight) {
+      // Remove highlight and its notes
+      setStudyHighlights(studyHighlights.filter(h => h.verseNumber !== verseNumber));
+      setStudyNotes(studyNotes.filter(n => n.verseNumber !== verseNumber));
+      if (selectedVerseForNotes === verseNumber) {
+        setSelectedVerseForNotes(null);
       }
+    } else {
+      // Add highlight
+      const newHighlight = {
+        id: Date.now().toString(),
+        verseNumber: verseNumber,
+        color: selectedColor,
+      };
+      setStudyHighlights([...studyHighlights, newHighlight]);
+    }
+    SoundEffects.playClick();
+  };
+
+  const getVerseHighlight = (verseNumber) => {
+    return studyHighlights.find(h => h.verseNumber === verseNumber);
+  };
+
+  const getVerseNotes = (verseNumber) => {
+    return studyNotes.filter(n => n.verseNumber === verseNumber);
+  };
+
+  const handleVerseClick = (verseNumber) => {
+    const highlight = getVerseHighlight(verseNumber);
+    if (highlight) {
+      // Toggle notes panel for this verse
+      setSelectedVerseForNotes(selectedVerseForNotes === verseNumber ? null : verseNumber);
     }
   };
 
-  const applyHighlight = () => {
-    if (!selectedText) return;
-
-    const newHighlight = {
-      id: Date.now().toString(),
-      verseNumber: selectedText.verseNumber,
-      text: selectedText.text,
-      startIndex: selectedText.startIndex,
-      endIndex: selectedText.endIndex,
-      color: selectedColor,
-    };
-
-    setStudyHighlights([...studyHighlights, newHighlight]);
-    setSelectedText(null);
-    SoundEffects.playClick();
-  };
-
-  const removeHighlight = (highlightId) => {
-    setStudyHighlights(studyHighlights.filter(h => h.id !== highlightId));
-    SoundEffects.playClick();
-  };
-
-  const addNote = () => {
+  const addNote = (verseNumber) => {
     if (!noteText.trim()) {
       setError("Please enter note text");
       return;
     }
 
+    const verseHighlight = getVerseHighlight(verseNumber);
+    const color = verseHighlight ? verseHighlight.color : selectedColor;
+
     const newNote = {
       id: Date.now().toString(),
-      color: selectedColor,
+      verseNumber: verseNumber,
+      color: color,
       text: noteText.trim(),
       timestamp: new Date().toISOString(),
     };
 
     setStudyNotes([...studyNotes, newNote]);
     setNoteText("");
-    setShowNoteForm(false);
     setError("");
     SoundEffects.playAdd();
   };
@@ -3041,31 +3032,6 @@ function App() {
                         </div>
                       </div>
 
-                      {selectedText && (
-                        <div className="selection-toolbar">
-                          <div className="selection-info">
-                            Selected: "{selectedText.text.substring(0, 50)}
-                            {selectedText.text.length > 50 ? "..." : ""}"
-                          </div>
-                          <div
-                            style={{ display: "flex", gap: "10px" }}
-                          >
-                            <button
-                              className="btn btn-primary"
-                              onClick={applyHighlight}
-                            >
-                              <Icons.Highlighter /> Apply Highlight
-                            </button>
-                            <button
-                              className="btn btn-secondary"
-                              onClick={() => setSelectedText(null)}
-                            >
-                              <Icons.X /> Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
                       <div
                         style={{
                           marginTop: "20px",
@@ -3079,8 +3045,7 @@ function App() {
                             fontStyle: "italic",
                           }}
                         >
-                          💡 Tip: Select any text in the passage below to
-                          highlight it
+                          💡 Tip: Click the highlight button beside any verse to highlight it. Click a highlighted verse to view/add notes!
                         </p>
                       </div>
                     </div>
@@ -3099,154 +3064,123 @@ function App() {
                         {studyReference}
                       </h3>
 
-                      <div
-                        className="study-passage"
-                        onMouseUp={handleTextSelection}
-                      >
-                        {studyPassages.map((verse) => (
-                          <div
-                            key={verse.verseNumber}
-                            className="study-verse"
-                            data-verse-number={verse.verseNumber}
-                          >
-                            <span className="verse-number">
-                              {verse.verseNumber}
-                            </span>
-                            <span className="verse-content">
-                              {renderHighlightedVerse(verse)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                      <div className="study-passage">
+                        {studyPassages.map((verse) => {
+                          const highlight = getVerseHighlight(verse.verseNumber);
+                          const notes = getVerseNotes(verse.verseNumber);
+                          const isShowingNotes = selectedVerseForNotes === verse.verseNumber;
 
-                    <div className="study-notes-section">
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginBottom: "15px",
-                        }}
-                      >
-                        <h3 style={{ color: "#2c2416" }}>
-                          <Icons.StickyNote /> Notes
-                        </h3>
-                        <button
-                          className="btn btn-secondary"
-                          onClick={() => setShowNoteForm(!showNoteForm)}
-                        >
-                          <Icons.Plus />{" "}
-                          {showNoteForm ? "Cancel" : "Add Note"}
-                        </button>
-                      </div>
-
-                      {showNoteForm && (
-                        <div className="note-form">
-                          <textarea
-                            className="practice-input"
-                            rows="4"
-                            placeholder="Write your note here..."
-                            value={noteText}
-                            onChange={(e) => setNoteText(e.target.value)}
-                            style={{ marginBottom: "10px" }}
-                          />
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: "10px",
-                              alignItems: "center",
-                            }}
-                          >
-                            <div
-                              className="color-swatch active"
-                              style={{
-                                backgroundColor: selectedColor,
-                                width: "40px",
-                                height: "40px",
-                              }}
-                            ></div>
-                            <button
-                              className="btn btn-success"
-                              onClick={addNote}
-                              disabled={!noteText.trim()}
-                            >
-                              <Icons.Save /> Save Note
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {studyNotes.length === 0 ? (
-                        <div
-                          className="empty-state-small"
-                          style={{
-                            padding: "30px",
-                            textAlign: "center",
-                            color: "#8b7355",
-                          }}
-                        >
-                          <p>No notes yet. Add your first note above!</p>
-                        </div>
-                      ) : (
-                        <div className="notes-grid">
-                          {PASTEL_COLORS.map((color) => {
-                            const colorNotes = studyNotes.filter(
-                              (n) => n.color === color.value
-                            );
-
-                            if (colorNotes.length === 0) return null;
-
-                            return (
-                              <div key={color.value} className="note-group">
-                                <div
-                                  className="note-group-header"
+                          return (
+                            <div key={verse.verseNumber}>
+                              <div
+                                className={`study-verse ${highlight ? 'highlighted' : ''}`}
+                                data-verse-number={verse.verseNumber}
+                                style={{
+                                  backgroundColor: highlight ? highlight.color : 'transparent',
+                                  cursor: highlight ? 'pointer' : 'default',
+                                }}
+                                onClick={() => handleVerseClick(verse.verseNumber)}
+                              >
+                                <span className="verse-number">
+                                  {verse.verseNumber}
+                                </span>
+                                <span className="verse-content">
+                                  {verse.text}
+                                </span>
+                                <button
+                                  className={`verse-highlight-btn ${highlight ? 'active' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleVerseHighlight(verse.verseNumber);
+                                  }}
+                                  title={highlight ? "Remove highlight" : "Highlight this verse"}
                                   style={{
-                                    backgroundColor: color.value,
+                                    backgroundColor: highlight ? highlight.color : selectedColor,
                                   }}
                                 >
-                                  <div
-                                    className="color-swatch"
-                                    style={{
-                                      backgroundColor: color.value,
-                                      width: "20px",
-                                      height: "20px",
-                                    }}
-                                  ></div>
-                                  <span>{color.name} Notes</span>
-                                  <span className="note-count">
-                                    {colorNotes.length}
-                                  </span>
-                                </div>
-                                <div className="note-list">
-                                  {colorNotes.map((note) => (
-                                    <div key={note.id} className="note-card">
-                                      <div className="note-text">
-                                        {note.text}
-                                      </div>
-                                      <div className="note-footer">
-                                        <span className="note-date">
-                                          {new Date(
-                                            note.timestamp
-                                          ).toLocaleString()}
-                                        </span>
-                                        <button
-                                          className="icon-btn"
-                                          onClick={() => deleteNote(note.id)}
-                                          title="Delete note"
-                                        >
-                                          <Icons.Trash />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
+                                  {highlight ? <Icons.X /> : <Icons.Highlighter />}
+                                </button>
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
+
+                              {isShowingNotes && (
+                                <div className="verse-notes-panel">
+                                  <div className="verse-notes-header">
+                                    <h4>Notes for Verse {verse.verseNumber}</h4>
+                                    <button
+                                      className="icon-btn"
+                                      onClick={() => setSelectedVerseForNotes(null)}
+                                    >
+                                      <Icons.X />
+                                    </button>
+                                  </div>
+
+                                  <div className="verse-notes-form">
+                                    <textarea
+                                      className="practice-input"
+                                      rows="3"
+                                      placeholder="Add a note for this verse..."
+                                      value={noteText}
+                                      onChange={(e) => setNoteText(e.target.value)}
+                                      style={{ marginBottom: "10px" }}
+                                    />
+                                    <button
+                                      className="btn btn-success"
+                                      onClick={() => addNote(verse.verseNumber)}
+                                      disabled={!noteText.trim()}
+                                      style={{ width: "100%" }}
+                                    >
+                                      <Icons.Plus /> Add Note
+                                    </button>
+                                  </div>
+
+                                  {notes.length > 0 && (
+                                    <div className="verse-notes-list">
+                                      {notes.map((note) => (
+                                        <div key={note.id} className="verse-note-item">
+                                          <div className="verse-note-text">{note.text}</div>
+                                          <div className="verse-note-footer">
+                                            <span className="note-date">
+                                              {new Date(note.timestamp).toLocaleString()}
+                                            </span>
+                                            <button
+                                              className="icon-btn"
+                                              onClick={() => deleteNote(note.id)}
+                                            >
+                                              <Icons.Trash />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
+
+                    {studyHighlights.length > 0 && (
+                      <div className="study-summary-section">
+                        <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
+                          <Icons.BarChart /> Study Summary
+                        </h3>
+                        <div className="study-summary-stats">
+                          <div className="summary-stat">
+                            <Icons.Highlighter />
+                            <span>{studyHighlights.length} Highlighted Verses</span>
+                          </div>
+                          <div className="summary-stat">
+                            <Icons.StickyNote />
+                            <span>{studyNotes.length} Total Notes</span>
+                          </div>
+                        </div>
+                        <p style={{ fontSize: "0.9rem", color: "#6b5d42", marginTop: "15px" }}>
+                          Click any highlighted verse above to view or add notes
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
