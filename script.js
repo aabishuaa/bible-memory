@@ -653,6 +653,42 @@ const Icons = {
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
     </svg>
   ),
+  ChevronLeft: () => (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <polyline points="15 18 9 12 15 6"></polyline>
+    </svg>
+  ),
+  ChevronRight: () => (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  ),
+  ChevronDown: () => (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
+  ),
 };
 
 // Alert Modal Component (for notifications)
@@ -1158,6 +1194,12 @@ function App() {
   const [addSuccess, setAddSuccess] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
+  // My Verses navigation state
+  const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
+
+  // Progress section navigation state
+  const [currentMemorizedIndex, setCurrentMemorizedIndex] = useState(0);
+
   // Prayer tab state
   const [prayers, setPrayers] = useState([]);
   const [showPrayerForm, setShowPrayerForm] = useState(false);
@@ -1167,7 +1209,7 @@ function App() {
   const [prayerCategory, setPrayerCategory] = useState("Request");
   const [prayerVerseRefs, setPrayerVerseRefs] = useState([]);
   const [newVerseRef, setNewVerseRef] = useState("");
-  const [prayerFilter, setPrayerFilter] = useState("all"); // all, answered, unanswered
+  const [collapsedPrayers, setCollapsedPrayers] = useState({}); // Track collapsed state for each prayer
 
   // Bible Studies state
   const [studies, setStudies] = useState([]);
@@ -1273,6 +1315,21 @@ function App() {
       };
     }
   }, []);
+
+  // Clamp currentVerseIndex when verses change
+  useEffect(() => {
+    if (verses.length > 0 && currentVerseIndex >= verses.length) {
+      setCurrentVerseIndex(verses.length - 1);
+    }
+  }, [verses.length, currentVerseIndex]);
+
+  // Clamp currentMemorizedIndex when memorized verses change
+  useEffect(() => {
+    const memorizedCount = verses.filter((v) => v.memorized).length;
+    if (memorizedCount > 0 && currentMemorizedIndex >= memorizedCount) {
+      setCurrentMemorizedIndex(memorizedCount - 1);
+    }
+  }, [verses, currentMemorizedIndex]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -1765,31 +1822,6 @@ function App() {
         }
       },
     });
-  };
-
-  const handleToggleAnswered = async (prayerId) => {
-    try {
-      const prayer = prayers.find((p) => p.id === prayerId);
-      const updatedPrayer = {
-        ...prayer,
-        answered: !prayer.answered,
-        dateAnswered: !prayer.answered ? new Date().toISOString() : null,
-      };
-      await FirestoreService.updatePrayer(prayerId, updatedPrayer);
-      const updatedPrayers = await FirestoreService.getPrayers();
-      setPrayers(updatedPrayers);
-
-      if (!prayer.answered) {
-        SoundEffects.playCelebration();
-        Confetti.create();
-      } else {
-        SoundEffects.playClick();
-      }
-    } catch (error) {
-      console.error("Error toggling answered status:", error);
-      setError("Failed to update prayer. Please try again.");
-      SoundEffects.playError();
-    }
   };
 
   const handleAddVerseRef = () => {
@@ -2310,64 +2342,93 @@ function App() {
                 <p>Start by searching and adding verses you want to memorize</p>
               </div>
             ) : (
-              <div className="verse-list">
-                {verses.map((verse) => (
-                  <div
-                    key={verse.id}
-                    className={`verse-item ${
-                      verse.memorized ? "memorized" : ""
-                    }`}
+              <div>
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: "20px"
+                }}>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setCurrentVerseIndex(Math.max(0, currentVerseIndex - 1))}
+                    disabled={currentVerseIndex === 0}
+                    style={{ padding: "10px 20px" }}
                   >
-                    <div className="verse-item-header">
-                      <div
+                    <Icons.ChevronLeft /> Previous
+                  </button>
+                  <div style={{
+                    color: "#5a4d37",
+                    fontWeight: "500",
+                    fontSize: "0.9rem"
+                  }}>
+                    {currentVerseIndex + 1} / {verses.length}
+                  </div>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setCurrentVerseIndex(Math.min(verses.length - 1, currentVerseIndex + 1))}
+                    disabled={currentVerseIndex === verses.length - 1}
+                    style={{ padding: "10px 20px" }}
+                  >
+                    Next <Icons.ChevronRight />
+                  </button>
+                </div>
+                <div
+                  key={verses[currentVerseIndex].id}
+                  className={`verse-item ${
+                    verses[currentVerseIndex].memorized ? "memorized" : ""
+                  }`}
+                  style={{ marginBottom: "0" }}
+                >
+                  <div className="verse-item-header">
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <div className="verse-item-reference">
+                        {verses[currentVerseIndex].reference}
+                      </div>
+                      <span
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
+                          fontSize: "0.75rem",
+                          background: verses[currentVerseIndex].memorized ? "#e8f5e9" : "#f5f1e8",
+                          padding: "2px 8px",
+                          borderRadius: "6px",
+                          color: "#6b5d42",
+                          fontWeight: "500",
                         }}
                       >
-                        <div className="verse-item-reference">
-                          {verse.reference}
-                        </div>
-                        <span
-                          style={{
-                            fontSize: "0.75rem",
-                            background: verse.memorized ? "#e8f5e9" : "#f5f1e8",
-                            padding: "2px 8px",
-                            borderRadius: "6px",
-                            color: "#6b5d42",
-                            fontWeight: "500",
-                          }}
-                        >
-                          {verse.version || "KJV"}
-                        </span>
-                      </div>
-                      <div className="verse-item-actions">
-                        <button
-                          className={`icon-btn ${
-                            verse.memorized ? "active" : ""
-                          }`}
-                          onClick={() => handleToggleMemorized(verse.id)}
-                          title={
-                            verse.memorized
-                              ? "Mark as not memorized"
-                              : "Mark as memorized"
-                          }
-                        >
-                          <Icons.Heart filled={verse.memorized} />
-                        </button>
-                        <button
-                          className="icon-btn"
-                          onClick={() => handleDeleteVerse(verse.id)}
-                          title="Delete verse"
-                        >
-                          <Icons.Trash />
-                        </button>
-                      </div>
+                        {verses[currentVerseIndex].version || "KJV"}
+                      </span>
                     </div>
-                    <div className="verse-item-text">{verse.text}</div>
+                    <div className="verse-item-actions">
+                      <button
+                        className={`icon-btn ${
+                          verses[currentVerseIndex].memorized ? "active" : ""
+                        }`}
+                        onClick={() => handleToggleMemorized(verses[currentVerseIndex].id)}
+                        title={
+                          verses[currentVerseIndex].memorized
+                            ? "Mark as not memorized"
+                            : "Mark as memorized"
+                        }
+                      >
+                        <Icons.Heart filled={verses[currentVerseIndex].memorized} />
+                      </button>
+                      <button
+                        className="icon-btn"
+                        onClick={() => handleDeleteVerse(verses[currentVerseIndex].id)}
+                        title="Delete verse"
+                      >
+                        <Icons.Trash />
+                      </button>
+                    </div>
                   </div>
-                ))}
+                  <div className="verse-item-text">{verses[currentVerseIndex].text}</div>
+                </div>
               </div>
             )}
           </div>
@@ -2588,46 +2649,11 @@ function App() {
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
+                justifyContent: "flex-end",
                 alignItems: "center",
                 marginBottom: "20px",
-                flexWrap: "wrap",
-                gap: "10px",
               }}
             >
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                <button
-                  className={`btn ${
-                    prayerFilter === "all" ? "btn-primary" : "btn-secondary"
-                  }`}
-                  onClick={() => setPrayerFilter("all")}
-                  style={{ padding: "8px 16px", fontSize: "0.9rem" }}
-                >
-                  All
-                </button>
-                <button
-                  className={`btn ${
-                    prayerFilter === "unanswered"
-                      ? "btn-primary"
-                      : "btn-secondary"
-                  }`}
-                  onClick={() => setPrayerFilter("unanswered")}
-                  style={{ padding: "8px 16px", fontSize: "0.9rem" }}
-                >
-                  Active
-                </button>
-                <button
-                  className={`btn ${
-                    prayerFilter === "answered"
-                      ? "btn-primary"
-                      : "btn-secondary"
-                  }`}
-                  onClick={() => setPrayerFilter("answered")}
-                  style={{ padding: "8px 16px", fontSize: "0.9rem" }}
-                >
-                  Answered
-                </button>
-              </div>
               <button
                 className="btn btn-success"
                 onClick={() => setShowPrayerForm(!showPrayerForm)}
@@ -2785,83 +2811,74 @@ function App() {
             ) : (
               <div className="prayer-list">
                 {prayers
-                  .filter((prayer) => {
-                    if (prayerFilter === "answered") return prayer.answered;
-                    if (prayerFilter === "unanswered") return !prayer.answered;
-                    return true;
-                  })
                   .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded))
-                  .map((prayer) => (
-                    <div
-                      key={prayer.id}
-                      className={`prayer-card ${
-                        prayer.answered ? "answered" : ""
-                      }`}
-                    >
-                      <div className="prayer-card-header">
-                        <div>
-                          <h4 className="prayer-title">{prayer.title}</h4>
-                          <span
-                            className={`prayer-category ${prayer.category.toLowerCase()}`}
-                          >
-                            {prayer.category}
-                          </span>
+                  .map((prayer) => {
+                    const isCollapsed = collapsedPrayers[prayer.id] || false;
+                    return (
+                      <div key={prayer.id} className="prayer-card">
+                        <div className="prayer-card-header">
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+                            <button
+                              className="icon-btn"
+                              onClick={() => setCollapsedPrayers({
+                                ...collapsedPrayers,
+                                [prayer.id]: !isCollapsed
+                              })}
+                              title={isCollapsed ? "Expand prayer" : "Collapse prayer"}
+                              style={{ padding: "4px" }}
+                            >
+                              {isCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}
+                            </button>
+                            <div style={{ flex: 1 }}>
+                              <h4 className="prayer-title">{prayer.title}</h4>
+                              <span
+                                className={`prayer-category ${prayer.category.toLowerCase()}`}
+                              >
+                                {prayer.category}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="prayer-card-actions">
+                            <button
+                              className="icon-btn"
+                              onClick={() => handleEditPrayer(prayer)}
+                              title="Edit prayer"
+                            >
+                              <Icons.Edit />
+                            </button>
+                            <button
+                              className="icon-btn"
+                              onClick={() => handleDeletePrayer(prayer.id)}
+                              title="Delete prayer"
+                            >
+                              <Icons.Trash />
+                            </button>
+                          </div>
                         </div>
-                        <div className="prayer-card-actions">
-                          <button
-                            className={`icon-btn ${
-                              prayer.answered ? "active" : ""
-                            }`}
-                            onClick={() => handleToggleAnswered(prayer.id)}
-                            title={
-                              prayer.answered
-                                ? "Mark as unanswered"
-                                : "Mark as answered"
-                            }
-                          >
-                            <Icons.CheckCircle filled={prayer.answered} />
-                          </button>
-                          <button
-                            className="icon-btn"
-                            onClick={() => handleEditPrayer(prayer)}
-                            title="Edit prayer"
-                          >
-                            <Icons.Edit />
-                          </button>
-                          <button
-                            className="icon-btn"
-                            onClick={() => handleDeletePrayer(prayer.id)}
-                            title="Delete prayer"
-                          >
-                            <Icons.Trash />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="prayer-content">{prayer.content}</div>
-                      {prayer.verseRefs && prayer.verseRefs.length > 0 && (
-                        <div className="prayer-verses">
-                          {prayer.verseRefs.map((ref) => (
-                            <span key={ref} className="prayer-verse-ref">
-                              <Icons.Book />
-                              {ref}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="prayer-footer">
-                        <span className="prayer-date">
-                          Added:{" "}
-                          {new Date(prayer.dateAdded).toLocaleDateString()}
-                        </span>
-                        {prayer.answered && prayer.dateAnswered && (
-                          <span className="prayer-date-answered">
-                            Answered:{" "}
-                            {new Date(prayer.dateAnswered).toLocaleDateString()}
-                          </span>
+                        {!isCollapsed && (
+                          <>
+                            <div className="prayer-content">{prayer.content}</div>
+                            {prayer.verseRefs && prayer.verseRefs.length > 0 && (
+                              <div className="prayer-verses">
+                                {prayer.verseRefs.map((ref) => (
+                                  <span key={ref} className="prayer-verse-ref">
+                                    <Icons.Book />
+                                    {ref}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="prayer-footer">
+                              <span className="prayer-date">
+                                Added:{" "}
+                                {new Date(prayer.dateAdded).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             )}
           </div>
@@ -3359,19 +3376,45 @@ function App() {
                 >
                   Memorized Verses
                 </h3>
-                <div className="verse-list">
-                  {verses
-                    .filter((v) => v.memorized)
-                    .map((verse) => (
-                      <div key={verse.id} className="verse-item memorized">
-                        <div className="verse-item-header">
-                          <div className="verse-item-reference">
-                            {verse.reference}
-                          </div>
-                        </div>
-                        <div className="verse-item-text">{verse.text}</div>
-                      </div>
-                    ))}
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: "20px"
+                }}>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setCurrentMemorizedIndex(Math.max(0, currentMemorizedIndex - 1))}
+                    disabled={currentMemorizedIndex === 0}
+                    style={{ padding: "10px 20px" }}
+                  >
+                    <Icons.ChevronLeft /> Previous
+                  </button>
+                  <div style={{
+                    color: "#5a4d37",
+                    fontWeight: "500",
+                    fontSize: "0.9rem"
+                  }}>
+                    {currentMemorizedIndex + 1} / {verses.filter((v) => v.memorized).length}
+                  </div>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setCurrentMemorizedIndex(Math.min(verses.filter((v) => v.memorized).length - 1, currentMemorizedIndex + 1))}
+                    disabled={currentMemorizedIndex === verses.filter((v) => v.memorized).length - 1}
+                    style={{ padding: "10px 20px" }}
+                  >
+                    Next <Icons.ChevronRight />
+                  </button>
+                </div>
+                <div className="verse-item memorized">
+                  <div className="verse-item-header">
+                    <div className="verse-item-reference">
+                      {verses.filter((v) => v.memorized)[currentMemorizedIndex].reference}
+                    </div>
+                  </div>
+                  <div className="verse-item-text">
+                    {verses.filter((v) => v.memorized)[currentMemorizedIndex].text}
+                  </div>
                 </div>
               </div>
             )}
