@@ -1710,3 +1710,519 @@ body {
         width: 100%;
     }
 }
+
+/* Bible Studies Styles */
+
+/* Study Grid */
+.study-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+@keyframes study-card-entrance {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.study-card {
+    background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+    padding: 24px;
+    border-radius: 18px;
+    border: 2px solid #e8dcc8;
+    box-shadow: 0 4px 20px rgba(44, 36, 22, 0.1);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: study-card-entrance 0.6s ease-out backwards;
+    position: relative;
+    overflow: hidden;
+}
+
+.study-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(139, 111, 71, 0.08),
+        transparent
+    );
+    transition: left 0.6s;
+}
+
+.study-card:hover::before {
+    left: 100%;
+}
+
+.study-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 8px 32px rgba(44, 36, 22, 0.2);
+    border-color: #8b6f47;
+}
+
+.study-card:nth-child(1) { animation-delay: 0.05s; }
+.study-card:nth-child(2) { animation-delay: 0.1s; }
+.study-card:nth-child(3) { animation-delay: 0.15s; }
+.study-card:nth-child(4) { animation-delay: 0.2s; }
+.study-card:nth-child(5) { animation-delay: 0.25s; }
+
+.study-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    gap: 15px;
+}
+
+.study-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #2c2416;
+    margin: 0;
+    flex: 1;
+}
+
+.study-card-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.study-reference {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    color: #8b6f47;
+    font-weight: 500;
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    background: rgba(139, 111, 71, 0.08);
+    border-radius: 8px;
+    width: fit-content;
+}
+
+.study-stats {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.study-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: #6b5d42;
+    font-weight: 500;
+}
+
+.study-date {
+    font-size: 0.8rem;
+    color: #8b7355;
+    margin-bottom: 15px;
+}
+
+/* Study Editor */
+.study-editor {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.study-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e8dcc8;
+    flex-wrap: wrap;
+}
+
+.study-form-section {
+    background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+    padding: 25px;
+    border-radius: 16px;
+    margin-bottom: 25px;
+    border: 2px solid #e8dcc8;
+}
+
+.study-label {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #4a3f2a;
+    margin-bottom: 10px;
+}
+
+/* Color Picker */
+.color-picker-section {
+    margin-bottom: 20px;
+}
+
+.color-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+}
+
+@keyframes color-swatch-pop {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.color-swatch {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4a3f2a;
+    box-shadow: 0 2px 8px rgba(44, 36, 22, 0.15);
+    position: relative;
+    overflow: hidden;
+}
+
+.color-swatch::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+        circle at center,
+        rgba(255, 255, 255, 0.3),
+        transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.color-swatch:hover::before {
+    opacity: 1;
+}
+
+.color-swatch:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 6px 20px rgba(44, 36, 22, 0.25);
+}
+
+.color-swatch.active {
+    border-color: #4a3f2a;
+    box-shadow: 0 4px 16px rgba(74, 63, 42, 0.4),
+                0 0 0 1px rgba(74, 63, 42, 0.1) inset;
+    transform: scale(1.05);
+    animation: color-swatch-pop 0.4s ease;
+}
+
+.color-swatch.active:hover {
+    transform: translateY(-4px) scale(1.08);
+}
+
+/* Selection Toolbar */
+@keyframes selection-toolbar-entrance {
+    from {
+        opacity: 0;
+        transform: translateY(-15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.selection-toolbar {
+    background: linear-gradient(135deg, #8b6f47 0%, #6b5537 100%);
+    padding: 18px 22px;
+    border-radius: 14px;
+    margin: 20px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    box-shadow: 0 6px 24px rgba(139, 111, 71, 0.4);
+    animation: selection-toolbar-entrance 0.4s ease-out;
+}
+
+.selection-info {
+    color: white;
+    font-weight: 500;
+    font-size: 0.95rem;
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Study Passage */
+.study-tools-section {
+    background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+    padding: 25px;
+    border-radius: 16px;
+    margin-bottom: 25px;
+    border: 2px solid #e8dcc8;
+}
+
+.study-passage-section {
+    background: linear-gradient(135deg, #ffffff 0%, #faf8f3 100%);
+    padding: 30px;
+    border-radius: 18px;
+    margin-bottom: 30px;
+    border: 3px solid #e8dcc8;
+    box-shadow: 0 4px 24px rgba(44, 36, 22, 0.1);
+}
+
+.study-passage {
+    font-family: 'Noto Sans', serif;
+    line-height: 2;
+    user-select: text;
+    cursor: text;
+}
+
+@keyframes verse-entrance {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.study-verse {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 15px;
+    padding: 12px 0;
+    transition: all 0.3s ease;
+    animation: verse-entrance 0.5s ease-out backwards;
+}
+
+.study-verse:nth-child(1) { animation-delay: 0.05s; }
+.study-verse:nth-child(2) { animation-delay: 0.1s; }
+.study-verse:nth-child(3) { animation-delay: 0.15s; }
+.study-verse:nth-child(4) { animation-delay: 0.2s; }
+.study-verse:nth-child(5) { animation-delay: 0.25s; }
+.study-verse:nth-child(6) { animation-delay: 0.3s; }
+.study-verse:nth-child(7) { animation-delay: 0.35s; }
+.study-verse:nth-child(8) { animation-delay: 0.4s; }
+
+.verse-number {
+    font-weight: 700;
+    color: #8b6f47;
+    font-size: 0.9rem;
+    min-width: 35px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.verse-content {
+    font-size: 1.1rem;
+    color: #2c2416;
+    line-height: 1.9;
+}
+
+.highlight {
+    padding: 2px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.highlight:hover {
+    box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.15);
+    transform: scale(1.02);
+}
+
+/* Notes Section */
+.study-notes-section {
+    background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+    padding: 25px;
+    border-radius: 16px;
+    border: 2px solid #e8dcc8;
+}
+
+.note-form {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border: 2px solid #e8dcc8;
+    animation: scaleIn 0.3s ease-out;
+}
+
+.notes-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+@keyframes note-group-entrance {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.note-group {
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(44, 36, 22, 0.1);
+    animation: note-group-entrance 0.5s ease-out backwards;
+}
+
+.note-group:nth-child(1) { animation-delay: 0.05s; }
+.note-group:nth-child(2) { animation-delay: 0.1s; }
+.note-group:nth-child(3) { animation-delay: 0.15s; }
+.note-group:nth-child(4) { animation-delay: 0.2s; }
+.note-group:nth-child(5) { animation-delay: 0.25s; }
+.note-group:nth-child(6) { animation-delay: 0.3s; }
+
+.note-group-header {
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    color: #4a3f2a;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.note-count {
+    margin-left: auto;
+    background: rgba(0, 0, 0, 0.1);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+}
+
+.note-list {
+    background: white;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+@keyframes note-card-entrance {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.note-card {
+    background: linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%);
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid #e8dcc8;
+    transition: all 0.3s ease;
+    animation: note-card-entrance 0.4s ease-out backwards;
+}
+
+.note-card:nth-child(1) { animation-delay: 0.05s; }
+.note-card:nth-child(2) { animation-delay: 0.1s; }
+.note-card:nth-child(3) { animation-delay: 0.15s; }
+.note-card:nth-child(4) { animation-delay: 0.2s; }
+
+.note-card:hover {
+    transform: translateX(6px);
+    box-shadow: 0 4px 16px rgba(44, 36, 22, 0.15);
+    border-color: #d4c4a8;
+}
+
+.note-text {
+    color: #4a3f2a;
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+}
+
+.note-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid rgba(139, 111, 71, 0.1);
+}
+
+.note-date {
+    font-size: 0.75rem;
+    color: #8b7355;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .study-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .study-editor-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .study-editor-header .btn {
+        width: 100%;
+    }
+
+    .selection-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .selection-info {
+        min-width: auto;
+    }
+
+    .color-picker-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .study-verse {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .verse-number {
+        text-align: left;
+        min-width: auto;
+    }
+
+    .verse-content {
+        font-size: 1rem;
+    }
+
+    .study-passage-section {
+        padding: 20px;
+    }
+
+    .study-tools-section,
+    .study-form-section,
+    .study-notes-section {
+        padding: 18px;
+    }
+}
