@@ -1200,6 +1200,9 @@ function App() {
   // Progress section navigation state
   const [currentMemorizedIndex, setCurrentMemorizedIndex] = useState(0);
 
+  // Verse filtering toggle state (shared across Verses and Progress tabs)
+  const [showAllVerses, setShowAllVerses] = useState(true);
+
   // Prayer tab state
   const [prayers, setPrayers] = useState([]);
   const [showPrayerForm, setShowPrayerForm] = useState(false);
@@ -2342,94 +2345,141 @@ function App() {
                 <p>Start by searching and adding verses you want to memorize</p>
               </div>
             ) : (
-              <div>
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: "20px"
-                }}>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => setCurrentVerseIndex(Math.max(0, currentVerseIndex - 1))}
-                    disabled={currentVerseIndex === 0}
-                    style={{ padding: "10px 20px" }}
-                  >
-                    <Icons.ChevronLeft /> Previous
-                  </button>
-                  <div style={{
-                    color: "#5a4d37",
-                    fontWeight: "500",
-                    fontSize: "0.9rem"
-                  }}>
-                    {currentVerseIndex + 1} / {verses.length}
+              (() => {
+                const filteredVerses = showAllVerses ? verses : verses.filter((v) => v.memorized);
+                const displayIndex = Math.min(currentVerseIndex, Math.max(0, filteredVerses.length - 1));
+
+                return filteredVerses.length === 0 ? (
+                  <div className="empty-state">
+                    <Icons.BookOpen />
+                    <h3>No Memorized Verses Yet</h3>
+                    <p>Mark verses as memorized to see them here</p>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => setShowAllVerses(true)}
+                      style={{ marginTop: "15px" }}
+                    >
+                      Show All Verses
+                    </button>
                   </div>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => setCurrentVerseIndex(Math.min(verses.length - 1, currentVerseIndex + 1))}
-                    disabled={currentVerseIndex === verses.length - 1}
-                    style={{ padding: "10px 20px" }}
-                  >
-                    Next <Icons.ChevronRight />
-                  </button>
-                </div>
-                <div
-                  key={verses[currentVerseIndex].id}
-                  className={`verse-item ${
-                    verses[currentVerseIndex].memorized ? "memorized" : ""
-                  }`}
-                  style={{ marginBottom: "0" }}
-                >
-                  <div className="verse-item-header">
-                    <div
-                      style={{
+                ) : (
+                  <div>
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: "15px",
+                      gap: "10px"
+                    }}>
+                      <label style={{
                         display: "flex",
                         alignItems: "center",
                         gap: "8px",
-                      }}
-                    >
-                      <div className="verse-item-reference">
-                        {verses[currentVerseIndex].reference}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: "0.75rem",
-                          background: verses[currentVerseIndex].memorized ? "#e8f5e9" : "#f5f1e8",
-                          padding: "2px 8px",
-                          borderRadius: "6px",
-                          color: "#6b5d42",
-                          fontWeight: "500",
-                        }}
-                      >
-                        {verses[currentVerseIndex].version || "KJV"}
-                      </span>
+                        color: "#5a4d37",
+                        fontSize: "0.9rem",
+                        cursor: "pointer"
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={showAllVerses}
+                          onChange={(e) => {
+                            setShowAllVerses(e.target.checked);
+                            setCurrentVerseIndex(0);
+                          }}
+                          style={{ cursor: "pointer" }}
+                        />
+                        Show all verses
+                      </label>
                     </div>
-                    <div className="verse-item-actions">
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: "20px"
+                    }}>
                       <button
-                        className={`icon-btn ${
-                          verses[currentVerseIndex].memorized ? "active" : ""
-                        }`}
-                        onClick={() => handleToggleMemorized(verses[currentVerseIndex].id)}
-                        title={
-                          verses[currentVerseIndex].memorized
-                            ? "Mark as not memorized"
-                            : "Mark as memorized"
-                        }
+                        className="btn btn-secondary"
+                        onClick={() => setCurrentVerseIndex(Math.max(0, displayIndex - 1))}
+                        disabled={displayIndex === 0}
+                        style={{ padding: "10px 20px" }}
                       >
-                        <Icons.Heart filled={verses[currentVerseIndex].memorized} />
+                        <Icons.ChevronLeft /> Previous
                       </button>
+                      <div style={{
+                        color: "#5a4d37",
+                        fontWeight: "500",
+                        fontSize: "0.9rem"
+                      }}>
+                        {displayIndex + 1} / {filteredVerses.length}
+                      </div>
                       <button
-                        className="icon-btn"
-                        onClick={() => handleDeleteVerse(verses[currentVerseIndex].id)}
-                        title="Delete verse"
+                        className="btn btn-secondary"
+                        onClick={() => setCurrentVerseIndex(Math.min(filteredVerses.length - 1, displayIndex + 1))}
+                        disabled={displayIndex === filteredVerses.length - 1}
+                        style={{ padding: "10px 20px" }}
                       >
-                        <Icons.Trash />
+                        Next <Icons.ChevronRight />
                       </button>
+                    </div>
+                    <div
+                      key={filteredVerses[displayIndex].id}
+                      className={`verse-item ${
+                        filteredVerses[displayIndex].memorized ? "memorized" : ""
+                      }`}
+                      style={{ marginBottom: "0" }}
+                    >
+                      <div className="verse-item-header">
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          <div className="verse-item-reference">
+                            {filteredVerses[displayIndex].reference}
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "0.75rem",
+                              background: filteredVerses[displayIndex].memorized ? "#e8f5e9" : "#f5f1e8",
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                              color: "#6b5d42",
+                              fontWeight: "500",
+                            }}
+                          >
+                            {filteredVerses[displayIndex].version || "KJV"}
+                          </span>
+                        </div>
+                        <div className="verse-item-actions">
+                          <button
+                            className={`icon-btn ${
+                              filteredVerses[displayIndex].memorized ? "active" : ""
+                            }`}
+                            onClick={() => handleToggleMemorized(filteredVerses[displayIndex].id)}
+                            title={
+                              filteredVerses[displayIndex].memorized
+                                ? "Mark as not memorized"
+                                : "Mark as memorized"
+                            }
+                          >
+                            <Icons.Heart filled={filteredVerses[displayIndex].memorized} />
+                          </button>
+                          <button
+                            className="icon-btn"
+                            onClick={() => handleDeleteVerse(filteredVerses[displayIndex].id)}
+                            title="Delete verse"
+                          >
+                            <Icons.Trash />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="verse-item-text">{filteredVerses[displayIndex].text}</div>
                     </div>
                   </div>
-                  <div className="verse-item-text">{verses[currentVerseIndex].text}</div>
-                </div>
-              </div>
+                );
+              })()
             )}
           </div>
         )}
@@ -3365,59 +3415,104 @@ function App() {
               </div>
             )}
 
-            {verses.filter((v) => v.memorized).length > 0 && (
-              <div>
-                <h3
-                  style={{
-                    marginBottom: "15px",
-                    marginTop: "30px",
-                    color: "#2c2416",
-                  }}
-                >
-                  Memorized Verses
-                </h3>
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: "20px"
-                }}>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => setCurrentMemorizedIndex(Math.max(0, currentMemorizedIndex - 1))}
-                    disabled={currentMemorizedIndex === 0}
-                    style={{ padding: "10px 20px" }}
+            {(() => {
+              const filteredProgressVerses = showAllVerses ? verses : verses.filter((v) => v.memorized);
+              const displayProgressIndex = Math.min(currentMemorizedIndex, Math.max(0, filteredProgressVerses.length - 1));
+
+              return filteredProgressVerses.length > 0 ? (
+                <div>
+                  <h3
+                    style={{
+                      marginBottom: "15px",
+                      marginTop: "30px",
+                      color: "#2c2416",
+                    }}
                   >
-                    <Icons.ChevronLeft /> Previous
-                  </button>
+                    {showAllVerses ? "All Verses" : "Memorized Verses"}
+                  </h3>
                   <div style={{
-                    color: "#5a4d37",
-                    fontWeight: "500",
-                    fontSize: "0.9rem"
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: "15px",
+                    gap: "10px"
                   }}>
-                    {currentMemorizedIndex + 1} / {verses.filter((v) => v.memorized).length}
+                    <label style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      color: "#5a4d37",
+                      fontSize: "0.9rem",
+                      cursor: "pointer"
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={showAllVerses}
+                        onChange={(e) => {
+                          setShowAllVerses(e.target.checked);
+                          setCurrentMemorizedIndex(0);
+                        }}
+                        style={{ cursor: "pointer" }}
+                      />
+                      Show all verses
+                    </label>
                   </div>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => setCurrentMemorizedIndex(Math.min(verses.filter((v) => v.memorized).length - 1, currentMemorizedIndex + 1))}
-                    disabled={currentMemorizedIndex === verses.filter((v) => v.memorized).length - 1}
-                    style={{ padding: "10px 20px" }}
-                  >
-                    Next <Icons.ChevronRight />
-                  </button>
-                </div>
-                <div className="verse-item memorized">
-                  <div className="verse-item-header">
-                    <div className="verse-item-reference">
-                      {verses.filter((v) => v.memorized)[currentMemorizedIndex].reference}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: "20px"
+                  }}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setCurrentMemorizedIndex(Math.max(0, displayProgressIndex - 1))}
+                      disabled={displayProgressIndex === 0}
+                      style={{ padding: "10px 20px" }}
+                    >
+                      <Icons.ChevronLeft /> Previous
+                    </button>
+                    <div style={{
+                      color: "#5a4d37",
+                      fontWeight: "500",
+                      fontSize: "0.9rem"
+                    }}>
+                      {displayProgressIndex + 1} / {filteredProgressVerses.length}
+                    </div>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setCurrentMemorizedIndex(Math.min(filteredProgressVerses.length - 1, displayProgressIndex + 1))}
+                      disabled={displayProgressIndex === filteredProgressVerses.length - 1}
+                      style={{ padding: "10px 20px" }}
+                    >
+                      Next <Icons.ChevronRight />
+                    </button>
+                  </div>
+                  <div className={`verse-item ${filteredProgressVerses[displayProgressIndex].memorized ? "memorized" : ""}`}>
+                    <div className="verse-item-header">
+                      <div className="verse-item-reference">
+                        {filteredProgressVerses[displayProgressIndex].reference}
+                      </div>
+                    </div>
+                    <div className="verse-item-text">
+                      {filteredProgressVerses[displayProgressIndex].text}
                     </div>
                   </div>
-                  <div className="verse-item-text">
-                    {verses.filter((v) => v.memorized)[currentMemorizedIndex].text}
-                  </div>
                 </div>
-              </div>
-            )}
+              ) : showAllVerses ? null : (
+                <div className="empty-state" style={{ marginTop: "30px" }}>
+                  <Icons.BookOpen />
+                  <h3>No Memorized Verses Yet</h3>
+                  <p>Mark verses as memorized to see them here</p>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => setShowAllVerses(true)}
+                    style={{ marginTop: "15px" }}
+                  >
+                    Show All Verses
+                  </button>
+                </div>
+              );
+            })()}
 
             {verses.length === 0 && (
               <div className="empty-state">
