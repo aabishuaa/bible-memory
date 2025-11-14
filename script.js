@@ -589,6 +589,70 @@ const Icons = {
       <polyline points="7 3 7 8 15 8"></polyline>
     </svg>
   ),
+  BookMarked: () => (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+    </svg>
+  ),
+  Highlighter: () => (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="m9 11-6 6v3h9l3-3"></path>
+      <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"></path>
+    </svg>
+  ),
+  StickyNote: () => (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"></path>
+      <path d="M15 3v6h6"></path>
+    </svg>
+  ),
+  ArrowLeft: () => (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+  ),
+  Copy: () => (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+    </svg>
+  ),
 };
 
 // Alert Modal Component (for notifications)
@@ -1104,6 +1168,21 @@ function App() {
   const [newVerseRef, setNewVerseRef] = useState("");
   const [prayerFilter, setPrayerFilter] = useState("all"); // all, answered, unanswered
 
+  // Bible Studies state
+  const [studies, setStudies] = useState([]);
+  const [currentStudy, setCurrentStudy] = useState(null);
+  const [studyView, setStudyView] = useState("list"); // list, create, view
+  const [studyTitle, setStudyTitle] = useState("");
+  const [studyReference, setStudyReference] = useState("");
+  const [studyPassages, setStudyPassages] = useState([]);
+  const [studyHighlights, setStudyHighlights] = useState([]);
+  const [studyNotes, setStudyNotes] = useState([]);
+  const [selectedColor, setSelectedColor] = useState("#ffe4e1");
+  const [noteText, setNoteText] = useState("");
+  const [loadingStudy, setLoadingStudy] = useState(false);
+  const [selectedText, setSelectedText] = useState(null);
+  const [showNoteForm, setShowNoteForm] = useState(false);
+
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -1136,12 +1215,14 @@ function App() {
         if (userData && typeof FirestoreService !== "undefined") {
           FirestoreService.setUser(userData.uid);
           try {
-            const [userVerses, userPrayers] = await Promise.all([
+            const [userVerses, userPrayers, userStudies] = await Promise.all([
               FirestoreService.getVerses(),
               FirestoreService.getPrayers(),
+              FirestoreService.getStudies(),
             ]);
             setVerses(userVerses);
             setPrayers(userPrayers);
+            setStudies(userStudies);
           } catch (err) {
             console.error("Data load error:", err);
             setError("Failed to load data. Please refresh the page.");
@@ -1682,6 +1763,351 @@ function App() {
     setError("");
   };
 
+  // Bible Studies handlers
+  const PASTEL_COLORS = [
+    { name: "Pink", value: "#ffe4e1" },
+    { name: "Yellow", value: "#fff9e6" },
+    { name: "Green", value: "#e8f5e9" },
+    { name: "Blue", value: "#e3f2fd" },
+    { name: "Purple", value: "#f3e5f5" },
+    { name: "Orange", value: "#fff3e0" },
+  ];
+
+  const startNewStudy = () => {
+    setStudyView("create");
+    setStudyTitle("");
+    setStudyReference("");
+    setStudyPassages([]);
+    setStudyHighlights([]);
+    setStudyNotes([]);
+    setSelectedColor(PASTEL_COLORS[0].value);
+    setNoteText("");
+    setCurrentStudy(null);
+    setSelectedText(null);
+    setShowNoteForm(false);
+  };
+
+  const fetchStudyPassage = async () => {
+    if (!studyReference.trim()) {
+      setError("Please enter a scripture reference");
+      return;
+    }
+
+    setLoadingStudy(true);
+    setError("");
+
+    try {
+      // Fetch the passage - this will get a range if specified (e.g., "John 3:16-21")
+      const verseData = await BibleAPI.fetchVerse(studyReference, "KJV");
+
+      // Parse the text into individual verses
+      // The API returns the full passage text, we need to split it into verses
+      const text = verseData.text;
+      const reference = verseData.reference;
+
+      // Extract verse numbers from the reference (e.g., "John 3:16-21" -> 16 to 21)
+      const refMatch = reference.match(/(\d+):(\d+)(?:-(\d+))?/);
+
+      if (refMatch) {
+        const startVerse = parseInt(refMatch[2]);
+        const endVerse = refMatch[3] ? parseInt(refMatch[3]) : startVerse;
+
+        // Split the text by verse patterns
+        // The text might have verse numbers or we split by sentences
+        const verses = [];
+        const sentences = text.split(/(?<=[.!?])\s+/);
+        const versesPerSentence = Math.ceil(sentences.length / (endVerse - startVerse + 1));
+
+        for (let i = startVerse; i <= endVerse; i++) {
+          const sentenceIndex = (i - startVerse) * versesPerSentence;
+          const verseText = sentences.slice(sentenceIndex, sentenceIndex + versesPerSentence).join(" ");
+
+          if (verseText) {
+            verses.push({
+              verseNumber: i.toString(),
+              text: verseText.trim(),
+            });
+          }
+        }
+
+        // If splitting didn't work well, just put all text in one verse
+        if (verses.length === 0 || verses.every(v => !v.text)) {
+          verses.push({
+            verseNumber: startVerse.toString() + (endVerse > startVerse ? "-" + endVerse : ""),
+            text: text,
+          });
+        }
+
+        setStudyPassages(verses);
+      } else {
+        // Single verse or couldn't parse - just add as one verse
+        setStudyPassages([{
+          verseNumber: "1",
+          text: text,
+        }]);
+      }
+
+      SoundEffects.playSuccess();
+    } catch (err) {
+      setError(err.message);
+      SoundEffects.playError();
+    } finally {
+      setLoadingStudy(false);
+    }
+  };
+
+  const handleTextSelection = () => {
+    const selection = window.getSelection();
+    const selectedText = selection.toString().trim();
+
+    if (selectedText.length > 0) {
+      // Get the selected range
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer.parentElement;
+
+      // Check if selection is within a verse
+      if (container && container.closest(".study-verse")) {
+        const verseElement = container.closest(".study-verse");
+        const verseNumber = verseElement.getAttribute("data-verse-number");
+
+        // Calculate indices relative to the verse text
+        const verseText = verseElement.textContent.replace(/^\d+\s+/, ""); // Remove verse number
+        const startIndex = verseText.indexOf(selectedText);
+
+        if (startIndex !== -1) {
+          setSelectedText({
+            text: selectedText,
+            verseNumber: verseNumber,
+            startIndex: startIndex,
+            endIndex: startIndex + selectedText.length,
+          });
+          setShowNoteForm(false);
+        }
+      }
+    }
+  };
+
+  const applyHighlight = () => {
+    if (!selectedText) return;
+
+    const newHighlight = {
+      id: Date.now().toString(),
+      verseNumber: selectedText.verseNumber,
+      text: selectedText.text,
+      startIndex: selectedText.startIndex,
+      endIndex: selectedText.endIndex,
+      color: selectedColor,
+    };
+
+    setStudyHighlights([...studyHighlights, newHighlight]);
+    setSelectedText(null);
+    SoundEffects.playClick();
+  };
+
+  const removeHighlight = (highlightId) => {
+    setStudyHighlights(studyHighlights.filter(h => h.id !== highlightId));
+    SoundEffects.playClick();
+  };
+
+  const addNote = () => {
+    if (!noteText.trim()) {
+      setError("Please enter note text");
+      return;
+    }
+
+    const newNote = {
+      id: Date.now().toString(),
+      color: selectedColor,
+      text: noteText.trim(),
+      timestamp: new Date().toISOString(),
+    };
+
+    setStudyNotes([...studyNotes, newNote]);
+    setNoteText("");
+    setShowNoteForm(false);
+    setError("");
+    SoundEffects.playAdd();
+  };
+
+  const deleteNote = (noteId) => {
+    setStudyNotes(studyNotes.filter(n => n.id !== noteId));
+    SoundEffects.playClick();
+  };
+
+  const saveStudy = async () => {
+    if (!studyTitle.trim()) {
+      setError("Please enter a title for your study");
+      return;
+    }
+
+    if (studyPassages.length === 0) {
+      setError("Please fetch a scripture passage first");
+      return;
+    }
+
+    try {
+      const studyData = {
+        title: studyTitle.trim(),
+        reference: studyReference,
+        passages: studyPassages,
+        highlights: studyHighlights,
+        notes: studyNotes,
+      };
+
+      if (currentStudy) {
+        // Update existing study
+        await FirestoreService.updateStudy(currentStudy.id, studyData);
+      } else {
+        // Create new study
+        await FirestoreService.addStudy(studyData);
+      }
+
+      // Reload studies
+      const updatedStudies = await FirestoreService.getStudies();
+      setStudies(updatedStudies);
+
+      // Go back to list view
+      setStudyView("list");
+      setError("");
+      SoundEffects.playSuccess();
+    } catch (err) {
+      console.error("Error saving study:", err);
+      setError("Failed to save study. Please try again.");
+      SoundEffects.playError();
+    }
+  };
+
+  const loadStudy = (study) => {
+    setCurrentStudy(study);
+    setStudyTitle(study.title);
+    setStudyReference(study.reference);
+    setStudyPassages(study.passages || []);
+    setStudyHighlights(study.highlights || []);
+    setStudyNotes(study.notes || []);
+    setSelectedColor(PASTEL_COLORS[0].value);
+    setNoteText("");
+    setSelectedText(null);
+    setShowNoteForm(false);
+    setStudyView("view");
+  };
+
+  const deleteStudy = async (studyId) => {
+    const study = studies.find((s) => s.id === studyId);
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Study",
+      message: `Are you sure you want to delete this study?\n\n"${
+        study?.title || "Untitled study"
+      }"\n\nThis action cannot be undone.`,
+      confirmText: "Delete",
+      isDangerous: true,
+      onConfirm: async () => {
+        setConfirmModal({ ...confirmModal, isOpen: false });
+        try {
+          const updatedStudies = await FirestoreService.deleteStudy(studyId);
+          setStudies(updatedStudies);
+
+          // If we're viewing this study, go back to list
+          if (currentStudy && currentStudy.id === studyId) {
+            setStudyView("list");
+            setCurrentStudy(null);
+          }
+
+          SoundEffects.playClick();
+        } catch (error) {
+          console.error("Error deleting study:", error);
+          setError("Failed to delete study. Please try again.");
+          SoundEffects.playError();
+        }
+      },
+    });
+  };
+
+  const duplicateStudy = async (study) => {
+    try {
+      const duplicatedStudy = {
+        title: study.title + " (Copy)",
+        reference: study.reference,
+        passages: study.passages,
+        highlights: [],
+        notes: [],
+      };
+
+      await FirestoreService.addStudy(duplicatedStudy);
+      const updatedStudies = await FirestoreService.getStudies();
+      setStudies(updatedStudies);
+      SoundEffects.playSuccess();
+    } catch (err) {
+      console.error("Error duplicating study:", err);
+      setError("Failed to duplicate study. Please try again.");
+      SoundEffects.playError();
+    }
+  };
+
+  const renderHighlightedVerse = (verse) => {
+    const verseHighlights = studyHighlights.filter(h => h.verseNumber === verse.verseNumber);
+
+    if (verseHighlights.length === 0) {
+      return <span>{verse.text}</span>;
+    }
+
+    // Sort highlights by start index
+    const sortedHighlights = [...verseHighlights].sort((a, b) => a.startIndex - b.startIndex);
+
+    const parts = [];
+    let lastIndex = 0;
+
+    sortedHighlights.forEach((highlight, idx) => {
+      // Add text before highlight
+      if (highlight.startIndex > lastIndex) {
+        parts.push(
+          <span key={`text-${idx}`}>
+            {verse.text.substring(lastIndex, highlight.startIndex)}
+          </span>
+        );
+      }
+
+      // Add highlighted text
+      parts.push(
+        <span
+          key={`highlight-${highlight.id}`}
+          className="highlight"
+          style={{ backgroundColor: highlight.color }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setConfirmModal({
+              isOpen: true,
+              title: "Remove Highlight",
+              message: `Remove this highlight?\n\n"${highlight.text}"`,
+              confirmText: "Remove",
+              isDangerous: false,
+              onConfirm: () => {
+                removeHighlight(highlight.id);
+                setConfirmModal({ ...confirmModal, isOpen: false });
+              },
+            });
+          }}
+        >
+          {verse.text.substring(highlight.startIndex, highlight.endIndex)}
+        </span>
+      );
+
+      lastIndex = highlight.endIndex;
+    });
+
+    // Add remaining text
+    if (lastIndex < verse.text.length) {
+      parts.push(
+        <span key="text-end">
+          {verse.text.substring(lastIndex)}
+        </span>
+      );
+    }
+
+    return <>{parts}</>;
+  };
+
   const stats = {
     total: verses.length,
     memorized: verses.filter((v) => v.memorized).length,
@@ -1758,6 +2184,12 @@ function App() {
             onClick={() => setActiveTab("verses")}
           >
             <Icons.Book /> My Verses
+          </button>
+          <button
+            className={`tab ${activeTab === "studies" ? "active" : ""}`}
+            onClick={() => setActiveTab("studies")}
+          >
+            <Icons.BookMarked /> Bible Studies
           </button>
           <button
             className={`tab ${activeTab === "practice" ? "active" : ""}`}
@@ -2421,6 +2853,402 @@ function App() {
                       </div>
                     </div>
                   ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "studies" && (
+          <div>
+            {studyView === "list" && (
+              <>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "25px",
+                  }}
+                >
+                  <h2 style={{ color: "#2c2416", fontSize: "1.5rem" }}>
+                    Your Bible Studies
+                  </h2>
+                  <button
+                    className="btn btn-success"
+                    onClick={startNewStudy}
+                  >
+                    <Icons.Plus /> New Study
+                  </button>
+                </div>
+
+                {studies.length === 0 ? (
+                  <div className="empty-state">
+                    <Icons.BookMarked />
+                    <h3>No Studies Yet</h3>
+                    <p>
+                      Create your first Bible study to highlight passages and
+                      take color-coded notes
+                    </p>
+                  </div>
+                ) : (
+                  <div className="study-grid">
+                    {studies.map((study) => (
+                      <div key={study.id} className="study-card">
+                        <div className="study-card-header">
+                          <h3 className="study-title">{study.title}</h3>
+                          <div className="study-card-actions">
+                            <button
+                              className="icon-btn"
+                              onClick={() => duplicateStudy(study)}
+                              title="Duplicate study"
+                            >
+                              <Icons.Copy />
+                            </button>
+                            <button
+                              className="icon-btn"
+                              onClick={() => deleteStudy(study.id)}
+                              title="Delete study"
+                            >
+                              <Icons.Trash />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="study-reference">
+                          <Icons.Book />
+                          {study.reference}
+                        </div>
+                        <div className="study-stats">
+                          <span className="study-stat">
+                            <Icons.Highlighter />
+                            {study.highlights?.length || 0} Highlights
+                          </span>
+                          <span className="study-stat">
+                            <Icons.StickyNote />
+                            {study.notes?.length || 0} Notes
+                          </span>
+                        </div>
+                        <div className="study-date">
+                          Last modified:{" "}
+                          {new Date(study.dateModified).toLocaleDateString()}
+                        </div>
+                        <button
+                          className="btn btn-primary"
+                          style={{ marginTop: "15px", width: "100%" }}
+                          onClick={() => loadStudy(study)}
+                        >
+                          <Icons.BookOpen /> Open Study
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {(studyView === "create" || studyView === "view") && (
+              <div className="study-editor">
+                <div className="study-editor-header">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setStudyView("list");
+                      setCurrentStudy(null);
+                      setError("");
+                    }}
+                  >
+                    <Icons.ArrowLeft /> Back to Studies
+                  </button>
+                  <button
+                    className="btn btn-success"
+                    onClick={saveStudy}
+                    disabled={!studyTitle.trim() || studyPassages.length === 0}
+                  >
+                    <Icons.Save /> Save Study
+                  </button>
+                </div>
+
+                {error && <div className="error">{error}</div>}
+
+                <div className="study-form-section">
+                  <label className="study-label">Study Title</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Enter a title for your study..."
+                    value={studyTitle}
+                    onChange={(e) => setStudyTitle(e.target.value)}
+                    style={{ marginBottom: "20px" }}
+                  />
+
+                  <label className="study-label">Scripture Reference</label>
+                  <div className="search-box" style={{ marginBottom: "25px" }}>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="e.g., John 3:16-21, Psalm 23, Romans 8:28-39"
+                      value={studyReference}
+                      onChange={(e) => setStudyReference(e.target.value)}
+                      onKeyPress={(e) =>
+                        e.key === "Enter" && fetchStudyPassage()
+                      }
+                    />
+                    <button
+                      className="btn btn-primary"
+                      onClick={fetchStudyPassage}
+                      disabled={loadingStudy}
+                    >
+                      {loadingStudy ? (
+                        <>
+                          <div className="spinner-small"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Icons.Search /> Fetch Passage
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {studyPassages.length > 0 && (
+                  <>
+                    <div className="study-tools-section">
+                      <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
+                        Highlighting Tools
+                      </h3>
+
+                      <div className="color-picker-section">
+                        <label className="study-label">
+                          Select Highlight Color
+                        </label>
+                        <div className="color-picker-grid">
+                          {PASTEL_COLORS.map((color) => (
+                            <button
+                              key={color.value}
+                              className={`color-swatch ${
+                                selectedColor === color.value ? "active" : ""
+                              }`}
+                              style={{ backgroundColor: color.value }}
+                              onClick={() => setSelectedColor(color.value)}
+                              title={color.name}
+                            >
+                              {selectedColor === color.value && (
+                                <Icons.Check />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {selectedText && (
+                        <div className="selection-toolbar">
+                          <div className="selection-info">
+                            Selected: "{selectedText.text.substring(0, 50)}
+                            {selectedText.text.length > 50 ? "..." : ""}"
+                          </div>
+                          <div
+                            style={{ display: "flex", gap: "10px" }}
+                          >
+                            <button
+                              className="btn btn-primary"
+                              onClick={applyHighlight}
+                            >
+                              <Icons.Highlighter /> Apply Highlight
+                            </button>
+                            <button
+                              className="btn btn-secondary"
+                              onClick={() => setSelectedText(null)}
+                            >
+                              <Icons.X /> Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <div
+                        style={{
+                          marginTop: "20px",
+                          marginBottom: "10px",
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: "0.9rem",
+                            color: "#6b5d42",
+                            fontStyle: "italic",
+                          }}
+                        >
+                          💡 Tip: Select any text in the passage below to
+                          highlight it
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="study-passage-section">
+                      <h3
+                        style={{
+                          color: "#2c2416",
+                          marginBottom: "15px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <Icons.Book />
+                        {studyReference}
+                      </h3>
+
+                      <div
+                        className="study-passage"
+                        onMouseUp={handleTextSelection}
+                      >
+                        {studyPassages.map((verse) => (
+                          <div
+                            key={verse.verseNumber}
+                            className="study-verse"
+                            data-verse-number={verse.verseNumber}
+                          >
+                            <span className="verse-number">
+                              {verse.verseNumber}
+                            </span>
+                            <span className="verse-content">
+                              {renderHighlightedVerse(verse)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="study-notes-section">
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "15px",
+                        }}
+                      >
+                        <h3 style={{ color: "#2c2416" }}>
+                          <Icons.StickyNote /> Notes
+                        </h3>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={() => setShowNoteForm(!showNoteForm)}
+                        >
+                          <Icons.Plus />{" "}
+                          {showNoteForm ? "Cancel" : "Add Note"}
+                        </button>
+                      </div>
+
+                      {showNoteForm && (
+                        <div className="note-form">
+                          <textarea
+                            className="practice-input"
+                            rows="4"
+                            placeholder="Write your note here..."
+                            value={noteText}
+                            onChange={(e) => setNoteText(e.target.value)}
+                            style={{ marginBottom: "10px" }}
+                          />
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "10px",
+                              alignItems: "center",
+                            }}
+                          >
+                            <div
+                              className="color-swatch active"
+                              style={{
+                                backgroundColor: selectedColor,
+                                width: "40px",
+                                height: "40px",
+                              }}
+                            ></div>
+                            <button
+                              className="btn btn-success"
+                              onClick={addNote}
+                              disabled={!noteText.trim()}
+                            >
+                              <Icons.Save /> Save Note
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {studyNotes.length === 0 ? (
+                        <div
+                          className="empty-state-small"
+                          style={{
+                            padding: "30px",
+                            textAlign: "center",
+                            color: "#8b7355",
+                          }}
+                        >
+                          <p>No notes yet. Add your first note above!</p>
+                        </div>
+                      ) : (
+                        <div className="notes-grid">
+                          {PASTEL_COLORS.map((color) => {
+                            const colorNotes = studyNotes.filter(
+                              (n) => n.color === color.value
+                            );
+
+                            if (colorNotes.length === 0) return null;
+
+                            return (
+                              <div key={color.value} className="note-group">
+                                <div
+                                  className="note-group-header"
+                                  style={{
+                                    backgroundColor: color.value,
+                                  }}
+                                >
+                                  <div
+                                    className="color-swatch"
+                                    style={{
+                                      backgroundColor: color.value,
+                                      width: "20px",
+                                      height: "20px",
+                                    }}
+                                  ></div>
+                                  <span>{color.name} Notes</span>
+                                  <span className="note-count">
+                                    {colorNotes.length}
+                                  </span>
+                                </div>
+                                <div className="note-list">
+                                  {colorNotes.map((note) => (
+                                    <div key={note.id} className="note-card">
+                                      <div className="note-text">
+                                        {note.text}
+                                      </div>
+                                      <div className="note-footer">
+                                        <span className="note-date">
+                                          {new Date(
+                                            note.timestamp
+                                          ).toLocaleString()}
+                                        </span>
+                                        <button
+                                          className="icon-btn"
+                                          onClick={() => deleteNote(note.id)}
+                                          title="Delete note"
+                                        >
+                                          <Icons.Trash />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

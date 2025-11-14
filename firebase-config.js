@@ -327,5 +327,90 @@ const FirestoreService = {
             console.error('Error deleting prayer:', error);
             throw error;
         }
+    },
+
+    // Bible Studies service methods
+    getStudiesCollection() {
+        if (!this.currentUserId || !db) {
+            throw new Error('User not authenticated or Firestore not initialized');
+        }
+        return db.collection('users').doc(this.currentUserId).collection('studies');
+    },
+
+    async getStudies() {
+        try {
+            if (!this.currentUserId) {
+                return [];
+            }
+
+            const snapshot = await this.getStudiesCollection().orderBy('dateModified', 'desc').get();
+            const studies = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                studies.push({
+                    id: doc.id,
+                    ...data,
+                    dateCreated: data.dateCreated?.toDate?.()?.toISOString() || new Date().toISOString(),
+                    dateModified: data.dateModified?.toDate?.()?.toISOString() || new Date().toISOString()
+                });
+            });
+            return studies;
+        } catch (error) {
+            console.error('Error getting studies:', error);
+            throw error;
+        }
+    },
+
+    async addStudy(study) {
+        try {
+            const studiesRef = this.getStudiesCollection();
+
+            const newStudy = {
+                title: study.title,
+                reference: study.reference,
+                passages: study.passages || [],
+                highlights: study.highlights || [],
+                notes: study.notes || [],
+                dateCreated: firebase.firestore.FieldValue.serverTimestamp(),
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            const docRef = await studiesRef.add(newStudy);
+            return docRef.id;
+        } catch (error) {
+            console.error('Error adding study:', error);
+            throw error;
+        }
+    },
+
+    async updateStudy(id, updates) {
+        try {
+            const studyRef = this.getStudiesCollection().doc(id);
+            const studyDoc = await studyRef.get();
+
+            if (studyDoc.exists) {
+                const updateData = {
+                    ...updates,
+                    dateModified: firebase.firestore.FieldValue.serverTimestamp()
+                };
+
+                await studyRef.update(updateData);
+            }
+
+            return await this.getStudies();
+        } catch (error) {
+            console.error('Error updating study:', error);
+            throw error;
+        }
+    },
+
+    async deleteStudy(id) {
+        try {
+            await this.getStudiesCollection().doc(id).delete();
+            return await this.getStudies();
+        } catch (error) {
+            console.error('Error deleting study:', error);
+            throw error;
+        }
     }
 };
