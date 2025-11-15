@@ -412,5 +412,296 @@ const FirestoreService = {
             console.error('Error deleting study:', error);
             throw error;
         }
+    },
+
+    // Group Bible Studies service methods
+    generateStudyCode() {
+        // Generate a 6-character alphanumeric code
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    },
+
+    async createGroupStudy(study) {
+        try {
+            if (!this.currentUserId) {
+                throw new Error('User not authenticated');
+            }
+
+            const groupStudiesRef = db.collection('groupStudies');
+
+            // Generate a unique code
+            let studyCode = this.generateStudyCode();
+            let codeExists = true;
+
+            // Ensure the code is unique
+            while (codeExists) {
+                const codeQuery = await groupStudiesRef.where('code', '==', studyCode).get();
+                if (codeQuery.empty) {
+                    codeExists = false;
+                } else {
+                    studyCode = this.generateStudyCode();
+                }
+            }
+
+            const newGroupStudy = {
+                code: studyCode,
+                title: study.title,
+                reference: study.reference,
+                passages: study.passages || [],
+                leadId: this.currentUserId,
+                leadName: study.leadName || 'Unknown',
+                leadPhoto: study.leadPhoto || null,
+                participantIds: [],
+                participants: [], // Array of {uid, displayName, photoURL}
+                mainPoints: study.mainPoints || [],
+                thoughts: [], // Array of {userId, userName, userPhoto, text, timestamp}
+                dateCreated: firebase.firestore.FieldValue.serverTimestamp(),
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            const docRef = await groupStudiesRef.add(newGroupStudy);
+            return {
+                id: docRef.id,
+                code: studyCode
+            };
+        } catch (error) {
+            console.error('Error creating group study:', error);
+            throw error;
+        }
+    },
+
+    async joinGroupStudy(code, userData) {
+        try {
+            if (!this.currentUserId) {
+                throw new Error('User not authenticated');
+            }
+
+            const groupStudiesRef = db.collection('groupStudies');
+            const codeQuery = await groupStudiesRef.where('code', '==', code.toUpperCase()).get();
+
+            if (codeQuery.empty) {
+                throw new Error('Invalid study code');
+            }
+
+            const studyDoc = codeQuery.docs[0];
+            const studyData = studyDoc.data();
+
+            // Check if user is already a participant or the lead
+            if (studyData.leadId === this.currentUserId) {
+                throw new Error('You are the lead of this study');
+            }
+
+            if (studyData.participantIds.includes(this.currentUserId)) {
+                throw new Error('You have already joined this study');
+            }
+
+            // Add user to participants
+            await studyDoc.ref.update({
+                participantIds: firebase.firestore.FieldValue.arrayUnion(this.currentUserId),
+                participants: firebase.firestore.FieldValue.arrayUnion({
+                    uid: this.currentUserId,
+                    displayName: userData.displayName || 'Unknown',
+                    photoURL: userData.photoURL || null
+                }),
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return studyDoc.id;
+        } catch (error) {
+            console.error('Error joining group study:', error);
+            throw error;
+        }
+    },
+
+    async getGroupStudies() {
+        try {
+            if (!this.currentUserId) {
+                return [];
+            }
+
+            const groupStudiesRef = db.collection('groupStudies');
+
+            // Get studies where user is the lead
+            const leadStudiesQuery = await groupStudiesRef
+                .where('leadId', '==', this.currentUserId)
+                .orderBy('dateModified', 'desc')
+                .get();
+
+            // Get studies where user is a participant
+            const participantStudiesQuery = await groupStudiesRef
+                .where('participantIds', 'array-contains', this.currentUserId)
+                .orderBy('dateModified', 'desc')
+                .get();
+
+            const studies = [];
+            const studyIds = new Set();
+
+            // Process lead studies
+            leadStudiesQuery.forEach(doc => {
+                const data = doc.data();
+                if (!studyIds.has(doc.id)) {
+                    studyIds.add(doc.id);
+                    studies.push({
+                        id: doc.id,
+                        ...data,
+                        isLead: true,
+                        dateCreated: data.dateCreated?.toDate?.()?.toISOString() || new Date().toISOString(),
+                        dateModified: data.dateModified?.toDate?.()?.toISOString() || new Date().toISOString()
+                    });
+                }
+            });
+
+            // Process participant studies
+            participantStudiesQuery.forEach(doc => {
+                const data = doc.data();
+                if (!studyIds.has(doc.id)) {
+                    studyIds.add(doc.id);
+                    studies.push({
+                        id: doc.id,
+                        ...data,
+                        isLead: false,
+                        dateCreated: data.dateCreated?.toDate?.()?.toISOString() || new Date().toISOString(),
+                        dateModified: data.dateModified?.toDate?.()?.toISOString() || new Date().toISOString()
+                    });
+                }
+            });
+
+            // Sort by dateModified descending
+            studies.sort((a, b) => new Date(b.dateModified) - new Date(a.dateModified));
+
+            return studies;
+        } catch (error) {
+            console.error('Error getting group studies:', error);
+            throw error;
+        }
+    },
+
+    async updateGroupStudy(id, updates) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(id);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const updateData = {
+                ...updates,
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            await studyRef.update(updateData);
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error updating group study:', error);
+            throw error;
+        }
+    },
+
+    async addThoughtToGroupStudy(studyId, thought, userData) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+
+            const newThought = {
+                userId: this.currentUserId,
+                userName: userData.displayName || 'Unknown',
+                userPhoto: userData.photoURL || null,
+                text: thought,
+                timestamp: new Date().toISOString()
+            };
+
+            await studyRef.update({
+                thoughts: firebase.firestore.FieldValue.arrayUnion(newThought),
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error adding thought:', error);
+            throw error;
+        }
+    },
+
+    async leaveGroupStudy(studyId, userData) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+
+            // Find the participant object to remove
+            const participantToRemove = studyData.participants.find(p => p.uid === this.currentUserId);
+
+            if (participantToRemove) {
+                await studyRef.update({
+                    participantIds: firebase.firestore.FieldValue.arrayRemove(this.currentUserId),
+                    participants: firebase.firestore.FieldValue.arrayRemove(participantToRemove),
+                    dateModified: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error leaving group study:', error);
+            throw error;
+        }
+    },
+
+    async deleteGroupStudy(id) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(id);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+
+            // Only the lead can delete the study
+            if (studyData.leadId !== this.currentUserId) {
+                throw new Error('Only the lead can delete this study');
+            }
+
+            await studyRef.delete();
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error deleting group study:', error);
+            throw error;
+        }
+    },
+
+    // Real-time listener for a specific group study
+    onGroupStudyChange(studyId, callback) {
+        if (!db) {
+            throw new Error('Firestore not initialized');
+        }
+
+        const studyRef = db.collection('groupStudies').doc(studyId);
+
+        return studyRef.onSnapshot((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                callback({
+                    id: doc.id,
+                    ...data,
+                    isLead: data.leadId === this.currentUserId,
+                    dateCreated: data.dateCreated?.toDate?.()?.toISOString() || new Date().toISOString(),
+                    dateModified: data.dateModified?.toDate?.()?.toISOString() || new Date().toISOString()
+                });
+            } else {
+                callback(null);
+            }
+        }, (error) => {
+            console.error('Error listening to group study changes:', error);
+        });
     }
 };

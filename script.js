@@ -691,6 +691,104 @@ const Icons = {
   ),
 };
 
+// Animated Toggle Switch Component
+function ToggleSwitch({ checked, onChange, label }) {
+  return (
+    <label
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+    >
+      <div
+        onClick={(e) => {
+          onChange(!checked);
+          SoundEffects.playClick();
+        }}
+        style={{
+          position: "relative",
+          width: "56px",
+          height: "28px",
+          background: checked
+            ? "linear-gradient(135deg, #6b8e5f 0%, #8b9b75 100%)"
+            : "linear-gradient(135deg, #d4c4a8 0%, #c4b49a 100%)",
+          borderRadius: "14px",
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          cursor: "pointer",
+          boxShadow: checked
+            ? "0 0 8px rgba(107, 142, 95, 0.4), inset 0 1px 3px rgba(0,0,0,0.1)"
+            : "inset 0 1px 3px rgba(0,0,0,0.2)",
+          border: checked
+            ? "2px solid #6b8e5f"
+            : "2px solid #c4b49a",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: "2px",
+            left: checked ? "28px" : "2px",
+            width: "20px",
+            height: "20px",
+            background: "linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%)",
+            borderRadius: "50%",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+            transform: checked ? "scale(1.1)" : "scale(1)",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              fontSize: "10px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {checked ? (
+              <span style={{ color: "#6b8e5f", fontWeight: "bold" }}>✓</span>
+            ) : (
+              <span style={{ color: "#999", fontWeight: "bold" }}>○</span>
+            )}
+          </div>
+        </div>
+        {/* Ripple effect on background */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: checked ? "75%" : "25%",
+            transform: "translate(-50%, -50%)",
+            width: "8px",
+            height: "8px",
+            borderRadius: "50%",
+            background: checked
+              ? "rgba(255, 255, 255, 0.3)"
+              : "rgba(255, 255, 255, 0.2)",
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+        />
+      </div>
+      <span
+        style={{
+          color: "#5a4d37",
+          fontSize: "0.9rem",
+          fontWeight: "500",
+        }}
+      >
+        {label}
+      </span>
+    </label>
+  );
+}
+
 // Alert Modal Component (for notifications)
 function AlertModal({ isOpen, onClose, title, message, buttonText = "OK" }) {
     if (!isOpen) return null;
@@ -1216,8 +1314,11 @@ function App() {
 
   // Bible Studies state
   const [studies, setStudies] = useState([]);
+  const [groupStudies, setGroupStudies] = useState([]);
   const [currentStudy, setCurrentStudy] = useState(null);
-  const [studyView, setStudyView] = useState("list"); // list, create, view
+  const [studyView, setStudyView] = useState("list"); // list, create, view, createGroup, joinGroup, viewGroup
+  const [studyType, setStudyType] = useState("personal"); // personal or group
+  const [studyListView, setStudyListView] = useState("personal"); // personal or group (for list view toggle)
   const [studyTitle, setStudyTitle] = useState("");
   const [studyReference, setStudyReference] = useState("");
   const [studyPassages, setStudyPassages] = useState([]);
@@ -1229,6 +1330,13 @@ function App() {
   const [selectedVerse, setSelectedVerse] = useState(null); // Changed from selectedText to selectedVerse
   const [viewingNotesForVerse, setViewingNotesForVerse] = useState(null); // For showing notes panel
   const [showNoteForm, setShowNoteForm] = useState(false);
+  const [groupStudyCode, setGroupStudyCode] = useState("");
+  const [joiningGroupStudy, setJoiningGroupStudy] = useState(false);
+  const [groupStudyListener, setGroupStudyListener] = useState(null);
+  const [mainPoints, setMainPoints] = useState([]);
+  const [newMainPoint, setNewMainPoint] = useState("");
+  const [thoughts, setThoughts] = useState([]);
+  const [newThought, setNewThought] = useState("");
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -1262,14 +1370,16 @@ function App() {
         if (userData && typeof FirestoreService !== "undefined") {
           FirestoreService.setUser(userData.uid);
           try {
-            const [userVerses, userPrayers, userStudies] = await Promise.all([
+            const [userVerses, userPrayers, userStudies, userGroupStudies] = await Promise.all([
               FirestoreService.getVerses(),
               FirestoreService.getPrayers(),
               FirestoreService.getStudies(),
+              FirestoreService.getGroupStudies(),
             ]);
             setVerses(userVerses);
             setPrayers(userPrayers);
             setStudies(userStudies);
+            setGroupStudies(userGroupStudies);
           } catch (err) {
             console.error("Data load error:", err);
             setError("Failed to load data. Please refresh the page.");
@@ -2133,6 +2243,223 @@ function App() {
     }
   };
 
+  // Group Bible Study handlers
+  const startNewGroupStudy = () => {
+    setStudyType("group");
+    setStudyView("createGroup");
+    setStudyTitle("");
+    setStudyReference("");
+    setStudyPassages([]);
+    setMainPoints([]);
+    setThoughts([]);
+    setCurrentStudy(null);
+  };
+
+  const startJoinGroupStudy = () => {
+    setStudyView("joinGroup");
+    setGroupStudyCode("");
+    setError("");
+  };
+
+  const createGroupStudy = async () => {
+    if (!studyTitle.trim()) {
+      setError("Please enter a study title");
+      return;
+    }
+    if (studyPassages.length === 0) {
+      setError("Please fetch a scripture passage");
+      return;
+    }
+
+    try {
+      setLoadingStudy(true);
+      const groupStudyData = {
+        title: studyTitle,
+        reference: studyReference,
+        passages: studyPassages,
+        mainPoints: mainPoints,
+        leadName: user.displayName || user.email,
+        leadPhoto: user.photoURL || null,
+      };
+
+      const result = await FirestoreService.createGroupStudy(groupStudyData);
+      const updatedGroupStudies = await FirestoreService.getGroupStudies();
+      setGroupStudies(updatedGroupStudies);
+
+      // Show the study code to the user
+      const createdStudy = updatedGroupStudies.find(s => s.id === result.id);
+      if (createdStudy) {
+        loadGroupStudy(createdStudy);
+      }
+
+      setLoadingStudy(false);
+      SoundEffects.playSuccess();
+      setError("");
+    } catch (err) {
+      console.error("Error creating group study:", err);
+      setError("Failed to create group study. Please try again.");
+      setLoadingStudy(false);
+      SoundEffects.playError();
+    }
+  };
+
+  const joinGroupStudy = async () => {
+    if (!groupStudyCode.trim()) {
+      setError("Please enter a study code");
+      return;
+    }
+
+    try {
+      setJoiningGroupStudy(true);
+      const userData = {
+        displayName: user.displayName || user.email,
+        photoURL: user.photoURL || null,
+      };
+
+      const studyId = await FirestoreService.joinGroupStudy(groupStudyCode.toUpperCase(), userData);
+      const updatedGroupStudies = await FirestoreService.getGroupStudies();
+      setGroupStudies(updatedGroupStudies);
+
+      const joinedStudy = updatedGroupStudies.find(s => s.id === studyId);
+      if (joinedStudy) {
+        loadGroupStudy(joinedStudy);
+      }
+
+      setJoiningGroupStudy(false);
+      SoundEffects.playSuccess();
+      setError("");
+      setGroupStudyCode("");
+    } catch (err) {
+      console.error("Error joining group study:", err);
+      setError(err.message || "Failed to join group study. Please check the code and try again.");
+      setJoiningGroupStudy(false);
+      SoundEffects.playError();
+    }
+  };
+
+  const loadGroupStudy = (study) => {
+    setCurrentStudy(study);
+    setStudyTitle(study.title);
+    setStudyReference(study.reference);
+    setStudyPassages(study.passages || []);
+    setMainPoints(study.mainPoints || []);
+    setThoughts(study.thoughts || []);
+    setStudyView("viewGroup");
+
+    // Set up real-time listener for this group study
+    if (groupStudyListener) {
+      groupStudyListener(); // Unsubscribe from previous listener
+    }
+
+    const unsubscribe = FirestoreService.onGroupStudyChange(study.id, (updatedStudy) => {
+      if (updatedStudy) {
+        setCurrentStudy(updatedStudy);
+        setMainPoints(updatedStudy.mainPoints || []);
+        setThoughts(updatedStudy.thoughts || []);
+      }
+    });
+
+    setGroupStudyListener(() => unsubscribe);
+  };
+
+  const addMainPoint = async () => {
+    if (!newMainPoint.trim()) return;
+
+    try {
+      const updatedMainPoints = [...mainPoints, newMainPoint];
+      await FirestoreService.updateGroupStudy(currentStudy.id, {
+        mainPoints: updatedMainPoints,
+      });
+      setMainPoints(updatedMainPoints);
+      setNewMainPoint("");
+      SoundEffects.playSuccess();
+    } catch (err) {
+      console.error("Error adding main point:", err);
+      setError("Failed to add main point");
+      SoundEffects.playError();
+    }
+  };
+
+  const addThought = async () => {
+    if (!newThought.trim()) return;
+
+    try {
+      const userData = {
+        displayName: user.displayName || user.email,
+        photoURL: user.photoURL || null,
+      };
+      await FirestoreService.addThoughtToGroupStudy(currentStudy.id, newThought, userData);
+      setNewThought("");
+      SoundEffects.playSuccess();
+    } catch (err) {
+      console.error("Error adding thought:", err);
+      setError("Failed to add thought");
+      SoundEffects.playError();
+    }
+  };
+
+  const leaveGroupStudy = async (studyId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Leave Group Study?",
+      message: "Are you sure you want to leave this group study? You can rejoin using the study code.",
+      confirmText: "Leave",
+      isDangerous: true,
+      onConfirm: async () => {
+        try {
+          const userData = {
+            displayName: user.displayName || user.email,
+            photoURL: user.photoURL || null,
+          };
+          await FirestoreService.leaveGroupStudy(studyId, userData);
+          const updatedGroupStudies = await FirestoreService.getGroupStudies();
+          setGroupStudies(updatedGroupStudies);
+          setStudyView("list");
+          setConfirmModal({ ...confirmModal, isOpen: false });
+          SoundEffects.playSuccess();
+        } catch (err) {
+          console.error("Error leaving group study:", err);
+          setError("Failed to leave group study");
+          setConfirmModal({ ...confirmModal, isOpen: false });
+          SoundEffects.playError();
+        }
+      },
+    });
+  };
+
+  const deleteGroupStudy = async (studyId) => {
+    const study = groupStudies.find((s) => s.id === studyId);
+
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Group Study?",
+      message: `Are you sure you want to delete "${study.title}"? This will remove the study for all participants. This action cannot be undone.`,
+      confirmText: "Delete",
+      isDangerous: true,
+      onConfirm: async () => {
+        try {
+          await FirestoreService.deleteGroupStudy(studyId);
+          const updatedGroupStudies = await FirestoreService.getGroupStudies();
+          setGroupStudies(updatedGroupStudies);
+          setConfirmModal({ ...confirmModal, isOpen: false });
+          SoundEffects.playSuccess();
+        } catch (err) {
+          console.error("Error deleting group study:", err);
+          setError(err.message || "Failed to delete group study");
+          setConfirmModal({ ...confirmModal, isOpen: false });
+          SoundEffects.playError();
+        }
+      },
+    });
+  };
+
+  const copyStudyCode = (code) => {
+    navigator.clipboard.writeText(code);
+    SoundEffects.playSuccess();
+    setError(""); // Clear any existing error
+    // Could show a toast notification here
+  };
+
   const getVerseHighlight = (verseNumber) => {
     return studyHighlights.find(h => h.verseNumber === verseNumber);
   };
@@ -2371,25 +2698,14 @@ function App() {
                       marginBottom: "15px",
                       gap: "10px"
                     }}>
-                      <label style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        color: "#5a4d37",
-                        fontSize: "0.9rem",
-                        cursor: "pointer"
-                      }}>
-                        <input
-                          type="checkbox"
-                          checked={showAllVerses}
-                          onChange={(e) => {
-                            setShowAllVerses(e.target.checked);
-                            setCurrentVerseIndex(0);
-                          }}
-                          style={{ cursor: "pointer" }}
-                        />
-                        Show all verses at once
-                      </label>
+                      <ToggleSwitch
+                        checked={showAllVerses}
+                        onChange={(newValue) => {
+                          setShowAllVerses(newValue);
+                          setCurrentVerseIndex(0);
+                        }}
+                        label="Show all verses at once"
+                      />
                     </div>
                     {showAllVerses ? (
                       // Display all verses in a list
@@ -3000,37 +3316,98 @@ function App() {
           <div>
             {studyView === "list" && (
               <>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "25px",
-                  }}
-                >
-                  <h2 style={{ color: "#2c2416", fontSize: "1.5rem" }}>
-                    Your Bible Studies
+                {/* Header with Personal/Group Toggle */}
+                <div style={{ marginBottom: "25px" }}>
+                  <h2 style={{ color: "#2c2416", fontSize: "1.5rem", marginBottom: "20px" }}>
+                    Bible Studies
                   </h2>
-                  <button
-                    className="btn btn-success"
-                    onClick={startNewStudy}
-                  >
-                    <Icons.Plus /> New Study
-                  </button>
+
+                  {/* Personal/Group Toggle */}
+                  <div style={{
+                    display: "flex",
+                    gap: "12px",
+                    marginBottom: "20px",
+                    borderBottom: "2px solid #e8dcc8",
+                    paddingBottom: "8px"
+                  }}>
+                    <button
+                      className="btn"
+                      onClick={() => setStudyListView("personal")}
+                      style={{
+                        flex: 1,
+                        background: studyListView === "personal"
+                          ? "linear-gradient(135deg, #6b8e5f 0%, #8b9b75 100%)"
+                          : "#f5f1e8",
+                        color: studyListView === "personal" ? "white" : "#5a4d37",
+                        border: "none",
+                        transition: "all 0.3s ease",
+                        fontWeight: studyListView === "personal" ? "bold" : "normal"
+                      }}
+                    >
+                      <Icons.BookMarked /> My Studies
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => setStudyListView("group")}
+                      style={{
+                        flex: 1,
+                        background: studyListView === "group"
+                          ? "linear-gradient(135deg, #6b8e5f 0%, #8b9b75 100%)"
+                          : "#f5f1e8",
+                        color: studyListView === "group" ? "white" : "#5a4d37",
+                        border: "none",
+                        transition: "all 0.3s ease",
+                        fontWeight: studyListView === "group" ? "bold" : "normal"
+                      }}
+                    >
+                      <Icons.User /> Group Studies
+                    </button>
+                  </div>
+
+                  {/* Action Buttons */}
+                  {studyListView === "personal" ? (
+                    <button
+                      className="btn btn-success"
+                      onClick={startNewStudy}
+                      style={{ width: "100%" }}
+                    >
+                      <Icons.Plus /> New Personal Study
+                    </button>
+                  ) : (
+                    <div style={{ display: "flex", gap: "12px" }}>
+                      <button
+                        className="btn btn-success"
+                        onClick={startNewGroupStudy}
+                        style={{ flex: 1 }}
+                      >
+                        <Icons.Plus /> Create Group Study
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        onClick={startJoinGroupStudy}
+                        style={{ flex: 1 }}
+                      >
+                        <Icons.User /> Join Study
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {studies.length === 0 ? (
-                  <div className="empty-state">
-                    <Icons.BookMarked />
-                    <h3>No Studies Yet</h3>
-                    <p>
-                      Create your first Bible study to highlight passages and
-                      take color-coded notes
-                    </p>
-                  </div>
-                ) : (
-                  <div className="study-grid">
-                    {studies.map((study) => (
+                {/* Personal Studies List */}
+                {studyListView === "personal" && (
+                  <>
+                    {studies.length === 0 ? (
+                      <div className="empty-state">
+                        <Icons.BookMarked />
+                        <h3>No Personal Studies Yet</h3>
+                        <p>
+                          Create your first Bible study to highlight passages and
+                          take color-coded notes
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="study-grid">
+                        {studies.map((study) => (
                       <div key={study.id} className="study-card">
                         <div className="study-card-header">
                           <h3 className="study-title">{study.title}</h3>
@@ -3079,6 +3456,149 @@ function App() {
                       </div>
                     ))}
                   </div>
+                    )}
+                  </>
+                )}
+
+                {/* Group Studies List */}
+                {studyListView === "group" && (
+                  <>
+                    {groupStudies.length === 0 ? (
+                      <div className="empty-state">
+                        <Icons.User />
+                        <h3>No Group Studies Yet</h3>
+                        <p>
+                          Create a group study to collaborate with others, or join an existing one with a study code
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="study-grid">
+                        {groupStudies.map((study) => (
+                          <div key={study.id} className="study-card" style={{
+                            background: study.isLead
+                              ? "linear-gradient(135deg, #fff9f0 0%, #f5f1e8 100%)"
+                              : "linear-gradient(135deg, #f0f9ff 0%, #e8f4f8 100%)",
+                            border: study.isLead ? "2px solid #d4a574" : "2px solid #7eb8d4"
+                          }}>
+                            <div className="study-card-header">
+                              <div>
+                                <div style={{
+                                  display: "inline-block",
+                                  padding: "4px 8px",
+                                  borderRadius: "4px",
+                                  background: study.isLead ? "#d4a574" : "#7eb8d4",
+                                  color: "white",
+                                  fontSize: "0.75rem",
+                                  fontWeight: "bold",
+                                  marginBottom: "8px"
+                                }}>
+                                  {study.isLead ? "LEAD" : "PARTICIPANT"}
+                                </div>
+                                <h3 className="study-title">{study.title}</h3>
+                              </div>
+                              <div className="study-card-actions">
+                                {study.isLead ? (
+                                  <button
+                                    className="icon-btn"
+                                    onClick={() => deleteGroupStudy(study.id)}
+                                    title="Delete group study"
+                                  >
+                                    <Icons.Trash />
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="icon-btn"
+                                    onClick={() => leaveGroupStudy(study.id)}
+                                    title="Leave group study"
+                                  >
+                                    <Icons.LogOut />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <div className="study-reference">
+                              <Icons.Book />
+                              {study.reference}
+                            </div>
+                            <div style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              padding: "8px",
+                              background: "rgba(255,255,255,0.7)",
+                              borderRadius: "6px",
+                              margin: "10px 0",
+                              fontSize: "0.9rem"
+                            }}>
+                              <Icons.User />
+                              <div>
+                                <div style={{ fontWeight: "600", color: "#2c2416" }}>
+                                  Lead: {study.leadName}
+                                </div>
+                                <div style={{ fontSize: "0.85rem", color: "#5a4d37" }}>
+                                  {study.participants?.length || 0} participant(s)
+                                </div>
+                              </div>
+                            </div>
+                            <div className="study-stats">
+                              <span className="study-stat">
+                                <Icons.BookMarked />
+                                {study.mainPoints?.length || 0} Main Points
+                              </span>
+                              <span className="study-stat">
+                                <Icons.StickyNote />
+                                {study.thoughts?.length || 0} Thoughts
+                              </span>
+                            </div>
+                            <div style={{
+                              display: "flex",
+                              gap: "8px",
+                              alignItems: "center",
+                              padding: "8px",
+                              background: "rgba(107, 142, 95, 0.1)",
+                              borderRadius: "6px",
+                              marginTop: "10px"
+                            }}>
+                              <Icons.Tag />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: "0.75rem", color: "#5a4d37", fontWeight: "600" }}>
+                                  Study Code:
+                                </div>
+                                <div style={{
+                                  fontFamily: "monospace",
+                                  fontSize: "1.1rem",
+                                  fontWeight: "bold",
+                                  color: "#2c2416",
+                                  letterSpacing: "2px"
+                                }}>
+                                  {study.code}
+                                </div>
+                              </div>
+                              <button
+                                className="icon-btn"
+                                onClick={() => copyStudyCode(study.code)}
+                                title="Copy study code"
+                                style={{
+                                  background: "#6b8e5f",
+                                  color: "white",
+                                  padding: "8px"
+                                }}
+                              >
+                                <Icons.Copy />
+                              </button>
+                            </div>
+                            <button
+                              className="btn btn-primary"
+                              style={{ marginTop: "15px", width: "100%" }}
+                              onClick={() => loadGroupStudy(study)}
+                            >
+                              <Icons.BookOpen /> Open Study
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -3434,6 +3954,567 @@ function App() {
                 )}
               </div>
             )}
+
+            {/* Create Group Study Flow */}
+            {studyView === "createGroup" && (
+              <div className="study-editor">
+                <div className="study-editor-header">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setStudyView("list");
+                      setCurrentStudy(null);
+                      setError("");
+                    }}
+                  >
+                    <Icons.ArrowLeft /> Back to Studies
+                  </button>
+                  <button
+                    className="btn btn-success"
+                    onClick={createGroupStudy}
+                    disabled={!studyTitle.trim() || studyPassages.length === 0 || loadingStudy}
+                  >
+                    {loadingStudy ? (
+                      <>
+                        <div className="spinner-small"></div>
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <Icons.Plus /> Create Group Study
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {error && <div className="error">{error}</div>}
+
+                <div className="study-form-section">
+                  <label className="study-label">Study Title</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Enter a title for your group study..."
+                    value={studyTitle}
+                    onChange={(e) => setStudyTitle(e.target.value)}
+                    style={{ marginBottom: "20px" }}
+                  />
+
+                  <label className="study-label">Scripture Reference</label>
+                  <div className="search-box" style={{ marginBottom: "25px" }}>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="e.g., John 3:16-21, Psalm 23, Romans 8:28-39"
+                      value={studyReference}
+                      onChange={(e) => setStudyReference(e.target.value)}
+                      onKeyPress={(e) =>
+                        e.key === "Enter" && fetchStudyPassage()
+                      }
+                    />
+                    <button
+                      className="btn btn-primary"
+                      onClick={fetchStudyPassage}
+                      disabled={loadingStudy}
+                    >
+                      {loadingStudy ? (
+                        <>
+                          <div className="spinner-small"></div>
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Icons.Search /> Fetch Passage
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {studyPassages.length > 0 && (
+                  <div style={{ marginTop: "30px" }}>
+                    <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
+                      Scripture Passage
+                    </h3>
+                    <div className="study-passage-display">
+                      {studyPassages.map((verse) => (
+                        <div
+                          key={verse.verseNumber}
+                          style={{
+                            padding: "12px",
+                            marginBottom: "8px",
+                            backgroundColor: "#f9f6f1",
+                            borderRadius: "6px",
+                            border: "1px solid #e8dcc8"
+                          }}
+                        >
+                          <div style={{
+                            fontSize: "0.85rem",
+                            fontWeight: "600",
+                            color: "#6b8e5f",
+                            marginBottom: "6px"
+                          }}>
+                            Verse {verse.verseNumber}
+                          </div>
+                          <div style={{
+                            fontSize: "1rem",
+                            lineHeight: "1.6",
+                            color: "#2c2416"
+                          }}>
+                            {verse.text}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Join Group Study Flow */}
+            {studyView === "joinGroup" && (
+              <div className="study-editor">
+                <div className="study-editor-header">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setStudyView("list");
+                      setError("");
+                    }}
+                  >
+                    <Icons.ArrowLeft /> Back to Studies
+                  </button>
+                </div>
+
+                <div style={{ maxWidth: "500px", margin: "0 auto", textAlign: "center" }}>
+                  <Icons.User />
+                  <h2 style={{ color: "#2c2416", marginTop: "20px", marginBottom: "10px" }}>
+                    Join a Group Study
+                  </h2>
+                  <p style={{ color: "#5a4d37", marginBottom: "30px" }}>
+                    Enter the 6-character study code shared by the study lead
+                  </p>
+
+                  {error && <div className="error" style={{ marginBottom: "20px" }}>{error}</div>}
+
+                  <div style={{ marginBottom: "20px" }}>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="Enter study code (e.g., ABC123)"
+                      value={groupStudyCode}
+                      onChange={(e) => setGroupStudyCode(e.target.value.toUpperCase())}
+                      onKeyPress={(e) => e.key === "Enter" && joinGroupStudy()}
+                      maxLength={6}
+                      style={{
+                        fontSize: "1.5rem",
+                        textAlign: "center",
+                        letterSpacing: "4px",
+                        fontFamily: "monospace",
+                        fontWeight: "bold",
+                        textTransform: "uppercase"
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    className="btn btn-success"
+                    onClick={joinGroupStudy}
+                    disabled={joiningGroupStudy || groupStudyCode.length !== 6}
+                    style={{ width: "100%" }}
+                  >
+                    {joiningGroupStudy ? (
+                      <>
+                        <div className="spinner-small"></div>
+                        Joining...
+                      </>
+                    ) : (
+                      <>
+                        <Icons.User /> Join Study
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* View Group Study */}
+            {studyView === "viewGroup" && currentStudy && (
+              <div className="study-editor">
+                <div className="study-editor-header">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setStudyView("list");
+                      setCurrentStudy(null);
+                      if (groupStudyListener) {
+                        groupStudyListener();
+                        setGroupStudyListener(null);
+                      }
+                    }}
+                  >
+                    <Icons.ArrowLeft /> Back to Studies
+                  </button>
+                  <div style={{
+                    display: "flex",
+                    gap: "8px",
+                    alignItems: "center",
+                    padding: "8px 12px",
+                    background: currentStudy.isLead ? "#d4a574" : "#7eb8d4",
+                    color: "white",
+                    borderRadius: "6px",
+                    fontSize: "0.85rem",
+                    fontWeight: "bold"
+                  }}>
+                    {currentStudy.isLead ? "YOU ARE THE LEAD" : "PARTICIPANT"}
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: "20px" }}>
+                  <h2 style={{ color: "#2c2416", marginBottom: "10px" }}>{currentStudy.title}</h2>
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    color: "#5a4d37",
+                    marginBottom: "10px"
+                  }}>
+                    <Icons.Book />
+                    <span style={{ fontWeight: "600" }}>{currentStudy.reference}</span>
+                  </div>
+
+                  {/* Study Code Display */}
+                  <div style={{
+                    display: "flex",
+                    gap: "8px",
+                    alignItems: "center",
+                    padding: "12px",
+                    background: "rgba(107, 142, 95, 0.1)",
+                    borderRadius: "6px",
+                    marginBottom: "20px"
+                  }}>
+                    <Icons.Tag />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "0.75rem", color: "#5a4d37", fontWeight: "600" }}>
+                        Study Code:
+                      </div>
+                      <div style={{
+                        fontFamily: "monospace",
+                        fontSize: "1.2rem",
+                        fontWeight: "bold",
+                        color: "#2c2416",
+                        letterSpacing: "3px"
+                      }}>
+                        {currentStudy.code}
+                      </div>
+                    </div>
+                    <button
+                      className="icon-btn"
+                      onClick={() => copyStudyCode(currentStudy.code)}
+                      title="Copy study code"
+                      style={{
+                        background: "#6b8e5f",
+                        color: "white",
+                        padding: "8px"
+                      }}
+                    >
+                      <Icons.Copy />
+                    </button>
+                  </div>
+
+                  {/* Participants */}
+                  <div style={{
+                    padding: "15px",
+                    background: "#f9f6f1",
+                    borderRadius: "8px",
+                    marginBottom: "20px"
+                  }}>
+                    <div style={{
+                      fontSize: "0.9rem",
+                      fontWeight: "600",
+                      color: "#2c2416",
+                      marginBottom: "10px"
+                    }}>
+                      Participants ({(currentStudy.participants?.length || 0) + 1})
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {/* Lead */}
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "8px",
+                        background: "rgba(212, 165, 116, 0.2)",
+                        borderRadius: "6px"
+                      }}>
+                        {currentStudy.leadPhoto && (
+                          <img
+                            src={currentStudy.leadPhoto}
+                            alt={currentStudy.leadName}
+                            style={{
+                              width: "32px",
+                              height: "32px",
+                              borderRadius: "50%"
+                            }}
+                          />
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: "600", color: "#2c2416" }}>
+                            {currentStudy.leadName}
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "#d4a574", fontWeight: "bold" }}>
+                            LEAD
+                          </div>
+                        </div>
+                      </div>
+                      {/* Participants */}
+                      {currentStudy.participants?.map((participant, idx) => (
+                        <div key={idx} style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          padding: "8px",
+                          background: "white",
+                          borderRadius: "6px"
+                        }}>
+                          {participant.photoURL && (
+                            <img
+                              src={participant.photoURL}
+                              alt={participant.displayName}
+                              style={{
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "50%"
+                              }}
+                            />
+                          )}
+                          <div>
+                            <div style={{ fontWeight: "600", color: "#2c2416" }}>
+                              {participant.displayName}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Scripture Passage */}
+                <div style={{ marginBottom: "30px" }}>
+                  <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
+                    Scripture Passage
+                  </h3>
+                  <div className="study-passage-display">
+                    {studyPassages.map((verse) => (
+                      <div
+                        key={verse.verseNumber}
+                        style={{
+                          padding: "12px",
+                          marginBottom: "8px",
+                          backgroundColor: "#f9f6f1",
+                          borderRadius: "6px",
+                          border: "1px solid #e8dcc8"
+                        }}
+                      >
+                        <div style={{
+                          fontSize: "0.85rem",
+                          fontWeight: "600",
+                          color: "#6b8e5f",
+                          marginBottom: "6px"
+                        }}>
+                          Verse {verse.verseNumber}
+                        </div>
+                        <div style={{
+                          fontSize: "1rem",
+                          lineHeight: "1.6",
+                          color: "#2c2416"
+                        }}>
+                          {verse.text}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Main Points (Lead Only) */}
+                <div style={{ marginBottom: "30px" }}>
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "15px"
+                  }}>
+                    <h3 style={{ color: "#2c2416" }}>
+                      <Icons.BookMarked /> Main Points
+                    </h3>
+                    {currentStudy.isLead && (
+                      <span style={{
+                        fontSize: "0.85rem",
+                        color: "#d4a574",
+                        fontWeight: "600"
+                      }}>
+                        Lead Only
+                      </span>
+                    )}
+                  </div>
+
+                  {currentStudy.isLead && (
+                    <div style={{ marginBottom: "15px" }}>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <input
+                          type="text"
+                          className="input"
+                          placeholder="Add a main point..."
+                          value={newMainPoint}
+                          onChange={(e) => setNewMainPoint(e.target.value)}
+                          onKeyPress={(e) => e.key === "Enter" && addMainPoint()}
+                        />
+                        <button
+                          className="btn btn-success"
+                          onClick={addMainPoint}
+                          disabled={!newMainPoint.trim()}
+                        >
+                          <Icons.Plus />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {mainPoints.length === 0 ? (
+                    <div style={{
+                      padding: "20px",
+                      textAlign: "center",
+                      color: "#5a4d37",
+                      background: "#f9f6f1",
+                      borderRadius: "6px",
+                      fontStyle: "italic"
+                    }}>
+                      {currentStudy.isLead ? "Add your first main point above" : "No main points yet"}
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {mainPoints.map((point, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: "12px",
+                            background: "rgba(212, 165, 116, 0.1)",
+                            borderLeft: "4px solid #d4a574",
+                            borderRadius: "6px"
+                          }}
+                        >
+                          <div style={{
+                            fontSize: "0.75rem",
+                            fontWeight: "600",
+                            color: "#d4a574",
+                            marginBottom: "4px"
+                          }}>
+                            POINT {idx + 1}
+                          </div>
+                          <div style={{ color: "#2c2416", lineHeight: "1.5" }}>
+                            {point}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Thoughts (All Participants) */}
+                <div style={{ marginBottom: "30px" }}>
+                  <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
+                    <Icons.StickyNote /> Thoughts & Reflections
+                  </h3>
+
+                  <div style={{ marginBottom: "15px" }}>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <textarea
+                        className="input"
+                        placeholder="Share your thoughts..."
+                        value={newThought}
+                        onChange={(e) => setNewThought(e.target.value)}
+                        style={{ resize: "vertical", minHeight: "80px" }}
+                      />
+                      <button
+                        className="btn btn-success"
+                        onClick={addThought}
+                        disabled={!newThought.trim()}
+                        style={{ alignSelf: "flex-start" }}
+                      >
+                        <Icons.Plus />
+                      </button>
+                    </div>
+                  </div>
+
+                  {thoughts.length === 0 ? (
+                    <div style={{
+                      padding: "20px",
+                      textAlign: "center",
+                      color: "#5a4d37",
+                      background: "#f9f6f1",
+                      borderRadius: "6px",
+                      fontStyle: "italic"
+                    }}>
+                      No thoughts shared yet. Be the first!
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      {thoughts.map((thought, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: "12px",
+                            background: "#f9f6f1",
+                            borderRadius: "6px",
+                            border: "1px solid #e8dcc8"
+                          }}
+                        >
+                          <div style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            marginBottom: "8px"
+                          }}>
+                            {thought.userPhoto && (
+                              <img
+                                src={thought.userPhoto}
+                                alt={thought.userName}
+                                style={{
+                                  width: "24px",
+                                  height: "24px",
+                                  borderRadius: "50%"
+                                }}
+                              />
+                            )}
+                            <div>
+                              <div style={{
+                                fontSize: "0.85rem",
+                                fontWeight: "600",
+                                color: "#2c2416"
+                              }}>
+                                {thought.userName}
+                              </div>
+                              <div style={{
+                                fontSize: "0.75rem",
+                                color: "#5a4d37"
+                              }}>
+                                {new Date(thought.timestamp).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{
+                            color: "#2c2416",
+                            lineHeight: "1.6"
+                          }}>
+                            {thought.text}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3499,25 +4580,14 @@ function App() {
                     marginBottom: "15px",
                     gap: "10px"
                   }}>
-                    <label style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      color: "#5a4d37",
-                      fontSize: "0.9rem",
-                      cursor: "pointer"
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={showAllVerses}
-                        onChange={(e) => {
-                          setShowAllVerses(e.target.checked);
-                          setCurrentMemorizedIndex(0);
-                        }}
-                        style={{ cursor: "pointer" }}
-                      />
-                      Show all verses at once
-                    </label>
+                    <ToggleSwitch
+                      checked={showAllVerses}
+                      onChange={(newValue) => {
+                        setShowAllVerses(newValue);
+                        setCurrentMemorizedIndex(0);
+                      }}
+                      label="Show all verses at once"
+                    />
                   </div>
                   {showAllVerses ? (
                     // Display all memorized verses in a list
