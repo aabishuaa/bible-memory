@@ -79,6 +79,26 @@ service cloud.firestore {
     match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Group Bible Studies - shared across users
+    match /groupStudies/{studyId} {
+      // Anyone authenticated can create a group study
+      allow create: if request.auth != null;
+
+      // Users can read group studies they're a member of
+      allow read: if request.auth != null &&
+        (request.auth.uid == resource.data.leadId ||
+         request.auth.uid in resource.data.participantIds);
+
+      // Lead can update the study, participants can add thoughts
+      allow update: if request.auth != null &&
+        (request.auth.uid == resource.data.leadId ||
+         request.auth.uid in resource.data.participantIds);
+
+      // Only the lead can delete the study
+      allow delete: if request.auth != null &&
+        request.auth.uid == resource.data.leadId;
+    }
   }
 }
 ```
