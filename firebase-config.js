@@ -452,13 +452,16 @@ const FirestoreService = {
                 title: study.title,
                 reference: study.reference,
                 passages: study.passages || [],
+                additionalReferences: [], // Array of additional scripture references
                 leadId: this.currentUserId,
                 leadName: study.leadName || 'Unknown',
                 leadPhoto: study.leadPhoto || null,
                 participantIds: [],
                 participants: [], // Array of {uid, displayName, photoURL}
                 mainPoints: study.mainPoints || [],
-                thoughts: [], // Array of {userId, userName, userPhoto, text, timestamp}
+                thoughts: [], // Array of {id, userId, userName, userPhoto, text, timestamp}
+                notes: [], // Array of {id, userId, userName, userPhoto, verseNumber, color, text, timestamp}
+                highlights: study.highlights || [], // Array of {verseNumber, color}
                 dateCreated: firebase.firestore.FieldValue.serverTimestamp(),
                 dateModified: firebase.firestore.FieldValue.serverTimestamp()
             };
@@ -607,6 +610,7 @@ const FirestoreService = {
             const studyRef = db.collection('groupStudies').doc(studyId);
 
             const newThought = {
+                id: Date.now().toString() + '_' + this.currentUserId,
                 userId: this.currentUserId,
                 userName: userData.displayName || 'Unknown',
                 userPhoto: userData.photoURL || null,
@@ -675,6 +679,368 @@ const FirestoreService = {
             return await this.getGroupStudies();
         } catch (error) {
             console.error('Error deleting group study:', error);
+            throw error;
+        }
+    },
+
+    // Delete a main point (lead only)
+    async deleteMainPoint(studyId, pointIndex) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+
+            // Only the lead can delete main points
+            if (studyData.leadId !== this.currentUserId) {
+                throw new Error('Only the lead can delete main points');
+            }
+
+            const mainPoints = [...studyData.mainPoints];
+            mainPoints.splice(pointIndex, 1);
+
+            await studyRef.update({
+                mainPoints: mainPoints,
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error deleting main point:', error);
+            throw error;
+        }
+    },
+
+    // Edit a main point (lead only)
+    async editMainPoint(studyId, pointIndex, newText) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+
+            // Only the lead can edit main points
+            if (studyData.leadId !== this.currentUserId) {
+                throw new Error('Only the lead can edit main points');
+            }
+
+            const mainPoints = [...studyData.mainPoints];
+            mainPoints[pointIndex] = newText;
+
+            await studyRef.update({
+                mainPoints: mainPoints,
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error editing main point:', error);
+            throw error;
+        }
+    },
+
+    // Delete a thought (own thoughts only)
+    async deleteThought(studyId, thoughtId) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+            const thoughts = studyData.thoughts || [];
+            const thoughtToDelete = thoughts.find(t => t.id === thoughtId);
+
+            if (!thoughtToDelete) {
+                throw new Error('Thought not found');
+            }
+
+            // Only the owner can delete their thought
+            if (thoughtToDelete.userId !== this.currentUserId) {
+                throw new Error('You can only delete your own thoughts');
+            }
+
+            const updatedThoughts = thoughts.filter(t => t.id !== thoughtId);
+
+            await studyRef.update({
+                thoughts: updatedThoughts,
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error deleting thought:', error);
+            throw error;
+        }
+    },
+
+    // Edit a thought (own thoughts only)
+    async editThought(studyId, thoughtId, newText) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+            const thoughts = studyData.thoughts || [];
+            const thoughtIndex = thoughts.findIndex(t => t.id === thoughtId);
+
+            if (thoughtIndex === -1) {
+                throw new Error('Thought not found');
+            }
+
+            // Only the owner can edit their thought
+            if (thoughts[thoughtIndex].userId !== this.currentUserId) {
+                throw new Error('You can only edit your own thoughts');
+            }
+
+            const updatedThoughts = [...thoughts];
+            updatedThoughts[thoughtIndex] = {
+                ...updatedThoughts[thoughtIndex],
+                text: newText,
+                edited: true,
+                editedAt: new Date().toISOString()
+            };
+
+            await studyRef.update({
+                thoughts: updatedThoughts,
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error editing thought:', error);
+            throw error;
+        }
+    },
+
+    // Add a note to a group study
+    async addNoteToGroupStudy(studyId, note, userData) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+
+            const newNote = {
+                id: Date.now().toString() + '_' + this.currentUserId,
+                userId: this.currentUserId,
+                userName: userData.displayName || 'Unknown',
+                userPhoto: userData.photoURL || null,
+                verseNumber: note.verseNumber,
+                color: note.color,
+                text: note.text,
+                timestamp: new Date().toISOString()
+            };
+
+            await studyRef.update({
+                notes: firebase.firestore.FieldValue.arrayUnion(newNote),
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error adding note:', error);
+            throw error;
+        }
+    },
+
+    // Delete a note (own notes only)
+    async deleteNoteFromGroupStudy(studyId, noteId) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+            const notes = studyData.notes || [];
+            const noteToDelete = notes.find(n => n.id === noteId);
+
+            if (!noteToDelete) {
+                throw new Error('Note not found');
+            }
+
+            // Only the owner can delete their note
+            if (noteToDelete.userId !== this.currentUserId) {
+                throw new Error('You can only delete your own notes');
+            }
+
+            const updatedNotes = notes.filter(n => n.id !== noteId);
+
+            await studyRef.update({
+                notes: updatedNotes,
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error deleting note:', error);
+            throw error;
+        }
+    },
+
+    // Edit a note (own notes only)
+    async editNoteInGroupStudy(studyId, noteId, newText, newColor) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+            const notes = studyData.notes || [];
+            const noteIndex = notes.findIndex(n => n.id === noteId);
+
+            if (noteIndex === -1) {
+                throw new Error('Note not found');
+            }
+
+            // Only the owner can edit their note
+            if (notes[noteIndex].userId !== this.currentUserId) {
+                throw new Error('You can only edit your own notes');
+            }
+
+            const updatedNotes = [...notes];
+            updatedNotes[noteIndex] = {
+                ...updatedNotes[noteIndex],
+                text: newText,
+                color: newColor,
+                edited: true,
+                editedAt: new Date().toISOString()
+            };
+
+            await studyRef.update({
+                notes: updatedNotes,
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error editing note:', error);
+            throw error;
+        }
+    },
+
+    // Add a highlight to a group study
+    async addHighlightToGroupStudy(studyId, verseNumber, color) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+            const highlights = studyData.highlights || [];
+
+            // Remove existing highlight for this verse if any
+            const updatedHighlights = highlights.filter(h => h.verseNumber !== verseNumber);
+
+            // Add new highlight
+            updatedHighlights.push({ verseNumber, color });
+
+            await studyRef.update({
+                highlights: updatedHighlights,
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error adding highlight:', error);
+            throw error;
+        }
+    },
+
+    // Remove a highlight from a group study
+    async removeHighlightFromGroupStudy(studyId, verseNumber) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+            const highlights = studyData.highlights || [];
+
+            const updatedHighlights = highlights.filter(h => h.verseNumber !== verseNumber);
+
+            await studyRef.update({
+                highlights: updatedHighlights,
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error removing highlight:', error);
+            throw error;
+        }
+    },
+
+    // Add an additional reference to a group study
+    async addAdditionalReference(studyId, reference, passages) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+
+            const newReference = {
+                id: Date.now().toString(),
+                reference: reference,
+                passages: passages,
+                addedAt: new Date().toISOString()
+            };
+
+            await studyRef.update({
+                additionalReferences: firebase.firestore.FieldValue.arrayUnion(newReference),
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error adding additional reference:', error);
+            throw error;
+        }
+    },
+
+    // Remove an additional reference from a group study
+    async removeAdditionalReference(studyId, referenceId) {
+        try {
+            const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
+
+            const studyData = studyDoc.data();
+            const additionalReferences = studyData.additionalReferences || [];
+
+            const updatedReferences = additionalReferences.filter(r => r.id !== referenceId);
+
+            await studyRef.update({
+                additionalReferences: updatedReferences,
+                dateModified: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            return await this.getGroupStudies();
+        } catch (error) {
+            console.error('Error removing additional reference:', error);
             throw error;
         }
     },
