@@ -1324,6 +1324,7 @@ function App() {
   const [studyPassages, setStudyPassages] = useState([]);
   const [studyHighlights, setStudyHighlights] = useState([]);
   const [studyNotes, setStudyNotes] = useState([]);
+  const [studyAdditionalReferences, setStudyAdditionalReferences] = useState([]);
   const [selectedColor, setSelectedColor] = useState("#ffe4e1");
   const [noteText, setNoteText] = useState("");
   const [loadingStudy, setLoadingStudy] = useState(false);
@@ -1337,6 +1338,12 @@ function App() {
   const [newMainPoint, setNewMainPoint] = useState("");
   const [thoughts, setThoughts] = useState([]);
   const [newThought, setNewThought] = useState("");
+  const [editingNote, setEditingNote] = useState(null);
+  const [editingMainPoint, setEditingMainPoint] = useState(null);
+  const [editingThought, setEditingThought] = useState(null);
+  const [editingGroupNote, setEditingGroupNote] = useState(null);
+  const [additionalReferenceInput, setAdditionalReferenceInput] = useState("");
+  const [loadingAdditionalReference, setLoadingAdditionalReference] = useState(false);
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -1975,6 +1982,7 @@ function App() {
     setStudyPassages([]);
     setStudyHighlights([]);
     setStudyNotes([]);
+    setStudyAdditionalReferences([]);
     setSelectedColor(PASTEL_COLORS[0].value);
     setNoteText("");
     setCurrentStudy(null);
@@ -2108,6 +2116,12 @@ function App() {
       return;
     }
 
+    if (editingNote) {
+      // We're editing an existing note
+      saveEditedNote();
+      return;
+    }
+
     // If we're viewing notes for a specific verse, attach the note to that verse
     const verseNumber = viewingNotesForVerse || selectedVerse;
 
@@ -2149,6 +2163,7 @@ function App() {
         passages: studyPassages,
         highlights: studyHighlights,
         notes: studyNotes,
+        additionalReferences: studyAdditionalReferences,
       };
 
       if (currentStudy) {
@@ -2181,6 +2196,7 @@ function App() {
     setStudyPassages(study.passages || []);
     setStudyHighlights(study.highlights || []);
     setStudyNotes(study.notes || []);
+    setStudyAdditionalReferences(study.additionalReferences || []);
     setSelectedColor(PASTEL_COLORS[0].value);
     setNoteText("");
     setSelectedVerse(null);
@@ -2344,6 +2360,8 @@ function App() {
     setStudyPassages(study.passages || []);
     setMainPoints(study.mainPoints || []);
     setThoughts(study.thoughts || []);
+    setStudyNotes(study.notes || []);
+    setStudyHighlights(study.highlights || []);
     setStudyView("viewGroup");
 
     // Set up real-time listener for this group study
@@ -2356,6 +2374,8 @@ function App() {
         setCurrentStudy(updatedStudy);
         setMainPoints(updatedStudy.mainPoints || []);
         setThoughts(updatedStudy.thoughts || []);
+        setStudyNotes(updatedStudy.notes || []);
+        setStudyHighlights(updatedStudy.highlights || []);
       }
     });
 
@@ -2451,6 +2471,302 @@ function App() {
         }
       },
     });
+  };
+
+  // Edit main point (lead only)
+  const editMainPoint = async (pointIndex, newText) => {
+    try {
+      await FirestoreService.editMainPoint(currentStudy.id, pointIndex, newText);
+      SoundEffects.playSuccess();
+    } catch (err) {
+      console.error("Error editing main point:", err);
+      setError("Failed to edit main point");
+      SoundEffects.playError();
+    }
+  };
+
+  // Delete main point (lead only)
+  const deleteMainPoint = async (pointIndex) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Main Point?",
+      message: "Are you sure you want to delete this main point?",
+      confirmText: "Delete",
+      isDangerous: true,
+      onConfirm: async () => {
+        try {
+          await FirestoreService.deleteMainPoint(currentStudy.id, pointIndex);
+          setConfirmModal({ ...confirmModal, isOpen: false });
+          SoundEffects.playSuccess();
+        } catch (err) {
+          console.error("Error deleting main point:", err);
+          setError("Failed to delete main point");
+          setConfirmModal({ ...confirmModal, isOpen: false });
+          SoundEffects.playError();
+        }
+      },
+    });
+  };
+
+  // Edit thought (own thoughts only)
+  const editThought = async (thoughtId, newText) => {
+    try {
+      await FirestoreService.editThought(currentStudy.id, thoughtId, newText);
+      SoundEffects.playSuccess();
+    } catch (err) {
+      console.error("Error editing thought:", err);
+      setError("Failed to edit thought");
+      SoundEffects.playError();
+    }
+  };
+
+  // Delete thought (own thoughts only)
+  const deleteThought = async (thoughtId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Thought?",
+      message: "Are you sure you want to delete this thought?",
+      confirmText: "Delete",
+      isDangerous: true,
+      onConfirm: async () => {
+        try {
+          await FirestoreService.deleteThought(currentStudy.id, thoughtId);
+          setConfirmModal({ ...confirmModal, isOpen: false });
+          SoundEffects.playSuccess();
+        } catch (err) {
+          console.error("Error deleting thought:", err);
+          setError("Failed to delete thought");
+          setConfirmModal({ ...confirmModal, isOpen: false });
+          SoundEffects.playError();
+        }
+      },
+    });
+  };
+
+  // Add note to group study
+  const addNoteToGroupStudy = async () => {
+    if (!noteText.trim()) {
+      setError("Please enter note text");
+      return;
+    }
+
+    const verseNumber = viewingNotesForVerse || selectedVerse;
+
+    try {
+      const userData = {
+        displayName: user.displayName || user.email,
+        photoURL: user.photoURL || null,
+      };
+
+      const note = {
+        verseNumber: verseNumber,
+        color: selectedColor,
+        text: noteText.trim(),
+      };
+
+      await FirestoreService.addNoteToGroupStudy(currentStudy.id, note, userData);
+      setNoteText("");
+      setShowNoteForm(false);
+      setError("");
+      SoundEffects.playAdd();
+    } catch (err) {
+      console.error("Error adding note:", err);
+      setError("Failed to add note");
+      SoundEffects.playError();
+    }
+  };
+
+  // Edit note in group study (own notes only)
+  const editNoteInGroupStudy = async (noteId, newText, newColor) => {
+    try {
+      await FirestoreService.editNoteInGroupStudy(currentStudy.id, noteId, newText, newColor);
+      SoundEffects.playSuccess();
+    } catch (err) {
+      console.error("Error editing note:", err);
+      setError("Failed to edit note");
+      SoundEffects.playError();
+    }
+  };
+
+  // Delete note from group study (own notes only)
+  const deleteNoteFromGroupStudy = async (noteId) => {
+    try {
+      await FirestoreService.deleteNoteFromGroupStudy(currentStudy.id, noteId);
+      SoundEffects.playClick();
+    } catch (err) {
+      console.error("Error deleting note:", err);
+      setError("Failed to delete note");
+      SoundEffects.playError();
+    }
+  };
+
+  // Add highlight to group study
+  const addHighlightToGroupStudy = async (verseNumber, color) => {
+    try {
+      await FirestoreService.addHighlightToGroupStudy(currentStudy.id, verseNumber, color);
+      SoundEffects.playClick();
+    } catch (err) {
+      console.error("Error adding highlight:", err);
+      setError("Failed to add highlight");
+      SoundEffects.playError();
+    }
+  };
+
+  // Remove highlight from group study
+  const removeHighlightFromGroupStudy = async (verseNumber) => {
+    try {
+      await FirestoreService.removeHighlightFromGroupStudy(currentStudy.id, verseNumber);
+      SoundEffects.playClick();
+    } catch (err) {
+      console.error("Error removing highlight:", err);
+      setError("Failed to remove highlight");
+      SoundEffects.playError();
+    }
+  };
+
+  // Add additional reference to group study
+  const addAdditionalReference = async (reference, passages) => {
+    try {
+      await FirestoreService.addAdditionalReference(currentStudy.id, reference, passages);
+      SoundEffects.playSuccess();
+    } catch (err) {
+      console.error("Error adding reference:", err);
+      setError("Failed to add reference");
+      SoundEffects.playError();
+    }
+  };
+
+  // Remove additional reference from group study
+  const removeAdditionalReference = async (referenceId) => {
+    try {
+      await FirestoreService.removeAdditionalReference(currentStudy.id, referenceId);
+      SoundEffects.playClick();
+    } catch (err) {
+      console.error("Error removing reference:", err);
+      setError("Failed to remove reference");
+      SoundEffects.playError();
+    }
+  };
+
+  // Edit personal study note
+  const editNote = (noteId) => {
+    const note = studyNotes.find(n => n.id === noteId);
+    if (note) {
+      setEditingNote(note);
+      setNoteText(note.text);
+      setSelectedColor(note.color);
+      setShowNoteForm(true);
+    }
+  };
+
+  // Save edited note
+  const saveEditedNote = () => {
+    if (!noteText.trim()) {
+      setError("Please enter note text");
+      return;
+    }
+
+    const updatedNotes = studyNotes.map(n =>
+      n.id === editingNote.id
+        ? { ...n, text: noteText.trim(), color: selectedColor }
+        : n
+    );
+
+    setStudyNotes(updatedNotes);
+    setNoteText("");
+    setShowNoteForm(false);
+    setEditingNote(null);
+    setError("");
+    SoundEffects.playSuccess();
+  };
+
+  // Cancel editing note
+  const cancelEditNote = () => {
+    setNoteText("");
+    setShowNoteForm(false);
+    setEditingNote(null);
+    setSelectedColor(PASTEL_COLORS[0].value);
+  };
+
+  // Fetch and add additional reference (for group studies)
+  const fetchAndAddAdditionalReference = async () => {
+    if (!additionalReferenceInput.trim()) {
+      setError("Please enter a scripture reference");
+      return;
+    }
+
+    setLoadingAdditionalReference(true);
+    setError("");
+
+    try {
+      const verseData = await BibleAPI.fetchVerse(additionalReferenceInput, "KJV");
+      const text = verseData.text;
+      const reference = verseData.reference;
+
+      // Parse into verses similar to fetchStudyPassage
+      const refMatch = reference.match(/(\d+):(\d+)(?:-(\d+))?/);
+      const verses = [];
+
+      if (refMatch) {
+        const startVerse = parseInt(refMatch[2]);
+        const endVerse = refMatch[3] ? parseInt(refMatch[3]) : startVerse;
+
+        const sentences = text.split(/(?<=[.!?])\s+/);
+        const versesPerSentence = Math.ceil(sentences.length / (endVerse - startVerse + 1));
+
+        for (let i = startVerse; i <= endVerse; i++) {
+          const sentenceIndex = (i - startVerse) * versesPerSentence;
+          const verseText = sentences.slice(sentenceIndex, sentenceIndex + versesPerSentence).join(" ");
+
+          if (verseText) {
+            verses.push({
+              verseNumber: i.toString(),
+              text: verseText.trim(),
+            });
+          }
+        }
+
+        if (verses.length === 0 || verses.every(v => !v.text)) {
+          verses.push({
+            verseNumber: startVerse.toString() + (endVerse > startVerse ? "-" + endVerse : ""),
+            text: text,
+          });
+        }
+      } else {
+        verses.push({
+          verseNumber: "1",
+          text: text,
+        });
+      }
+
+      // Add to the study (group or personal)
+      if (studyType === "group" && currentStudy) {
+        await addAdditionalReference(reference, verses);
+      } else {
+        // For personal studies, add to local state
+        const newReference = {
+          id: Date.now().toString(),
+          reference: reference,
+          passages: verses,
+          addedAt: new Date().toISOString()
+        };
+        setStudyAdditionalReferences([...studyAdditionalReferences, newReference]);
+        SoundEffects.playSuccess();
+      }
+      setAdditionalReferenceInput("");
+      setLoadingAdditionalReference(false);
+    } catch (err) {
+      console.error("Error fetching additional reference:", err);
+      setError("Failed to fetch scripture. Please check the reference and try again.");
+      setLoadingAdditionalReference(false);
+      SoundEffects.playError();
+    }
+  };
+
+  // Remove additional reference (for personal studies)
+  const removeAdditionalReferenceFromPersonalStudy = (referenceId) => {
+    setStudyAdditionalReferences(studyAdditionalReferences.filter(r => r.id !== referenceId));
+    SoundEffects.playClick();
   };
 
   const copyStudyCode = (code) => {
@@ -3843,14 +4159,25 @@ function App() {
                                         onChange={(e) => setNoteText(e.target.value)}
                                         style={{ marginBottom: "8px", fontSize: "0.9rem" }}
                                       />
-                                      <button
-                                        className="btn btn-success btn-sm"
-                                        onClick={addNote}
-                                        disabled={!noteText.trim()}
-                                        style={{ fontSize: "0.85rem", padding: "6px 12px" }}
-                                      >
-                                        <Icons.Save style={{ width: "14px", height: "14px" }} /> Save Note
-                                      </button>
+                                      <div style={{ display: "flex", gap: "8px" }}>
+                                        <button
+                                          className="btn btn-success btn-sm"
+                                          onClick={addNote}
+                                          disabled={!noteText.trim()}
+                                          style={{ fontSize: "0.85rem", padding: "6px 12px" }}
+                                        >
+                                          <Icons.Save style={{ width: "14px", height: "14px" }} /> {editingNote ? "Update Note" : "Save Note"}
+                                        </button>
+                                        {editingNote && (
+                                          <button
+                                            className="btn btn-secondary btn-sm"
+                                            onClick={cancelEditNote}
+                                            style={{ fontSize: "0.85rem", padding: "6px 12px" }}
+                                          >
+                                            Cancel
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
 
@@ -3880,14 +4207,24 @@ function App() {
                                             color: "#5a4d37"
                                           }}>
                                             <span>{new Date(note.timestamp).toLocaleString()}</span>
-                                            <button
-                                              className="icon-btn"
-                                              onClick={() => deleteNote(note.id)}
-                                              title="Delete note"
-                                              style={{ fontSize: "0.8rem" }}
-                                            >
-                                              <Icons.Trash style={{ width: "12px", height: "12px" }} />
-                                            </button>
+                                            <div style={{ display: "flex", gap: "4px" }}>
+                                              <button
+                                                className="icon-btn"
+                                                onClick={() => editNote(note.id)}
+                                                title="Edit note"
+                                                style={{ fontSize: "0.8rem" }}
+                                              >
+                                                <Icons.Edit style={{ width: "12px", height: "12px" }} />
+                                              </button>
+                                              <button
+                                                className="icon-btn"
+                                                onClick={() => deleteNote(note.id)}
+                                                title="Delete note"
+                                                style={{ fontSize: "0.8rem" }}
+                                              >
+                                                <Icons.Trash style={{ width: "12px", height: "12px" }} />
+                                              </button>
+                                            </div>
                                           </div>
                                         </div>
                                       ))}
@@ -3950,6 +4287,116 @@ function App() {
                         </div>
                       </div>
                     )}
+
+                    {/* Additional Scripture References */}
+                    <div style={{ marginTop: "30px" }}>
+                      <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
+                        <Icons.Book /> Additional Scripture References
+                      </h3>
+
+                      <div style={{ marginBottom: "15px" }}>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="Add a scripture reference (e.g., John 3:16, Psalm 23)"
+                            value={additionalReferenceInput}
+                            onChange={(e) => setAdditionalReferenceInput(e.target.value)}
+                            onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
+                            style={{ flex: 1 }}
+                          />
+                          <button
+                            className="btn btn-success"
+                            onClick={fetchAndAddAdditionalReference}
+                            disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
+                          >
+                            {loadingAdditionalReference ? (
+                              <>Loading...</>
+                            ) : (
+                              <><Icons.Plus /> Add</>
+                            )}
+                          </button>
+                        </div>
+                        <div style={{ fontSize: "0.8rem", color: "#5a4d37", marginTop: "4px" }}>
+                          Search and add related scripture passages to your study
+                        </div>
+                      </div>
+
+                      {studyAdditionalReferences.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                          {studyAdditionalReferences.map((ref) => (
+                            <div
+                              key={ref.id}
+                              style={{
+                                padding: "15px",
+                                background: "#f9f6f1",
+                                borderRadius: "8px",
+                                border: "1px solid #e8dcc8"
+                              }}
+                            >
+                              <div style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginBottom: "10px"
+                              }}>
+                                <div style={{
+                                  fontSize: "0.95rem",
+                                  fontWeight: "600",
+                                  color: "#6b8e5f"
+                                }}>
+                                  {ref.reference}
+                                </div>
+                                <button
+                                  className="icon-btn"
+                                  onClick={() => removeAdditionalReferenceFromPersonalStudy(ref.id)}
+                                  title="Remove reference"
+                                  style={{ fontSize: "0.8rem" }}
+                                >
+                                  <Icons.Trash style={{ width: "14px", height: "14px" }} />
+                                </button>
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                {ref.passages.map((verse, idx) => (
+                                  <div
+                                    key={idx}
+                                    style={{
+                                      padding: "10px",
+                                      background: "white",
+                                      borderRadius: "6px",
+                                      fontSize: "0.9rem",
+                                      lineHeight: "1.6",
+                                      color: "#2c2416"
+                                    }}
+                                  >
+                                    <span style={{
+                                      fontSize: "0.75rem",
+                                      fontWeight: "600",
+                                      color: "#6b8e5f",
+                                      marginRight: "8px"
+                                    }}>
+                                      v{verse.verseNumber}:
+                                    </span>
+                                    {verse.text}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: "20px",
+                          textAlign: "center",
+                          color: "#5a4d37",
+                          background: "#f9f6f1",
+                          borderRadius: "6px",
+                          fontStyle: "italic"
+                        }}>
+                          No additional references yet. Add scripture passages to complement your study.
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -4305,34 +4752,283 @@ function App() {
                     Scripture Passage
                   </h3>
                   <div className="study-passage-display">
-                    {studyPassages.map((verse) => (
-                      <div
-                        key={verse.verseNumber}
-                        style={{
-                          padding: "12px",
-                          marginBottom: "8px",
-                          backgroundColor: "#f9f6f1",
-                          borderRadius: "6px",
-                          border: "1px solid #e8dcc8"
-                        }}
-                      >
-                        <div style={{
-                          fontSize: "0.85rem",
-                          fontWeight: "600",
-                          color: "#6b8e5f",
-                          marginBottom: "6px"
-                        }}>
-                          Verse {verse.verseNumber}
+                    {studyPassages.map((verse) => {
+                      const highlight = studyHighlights.find(h => h.verseNumber === verse.verseNumber);
+                      const verseNotes = studyNotes.filter(n => n.verseNumber === verse.verseNumber);
+                      const isViewingNotes = viewingNotesForVerse === verse.verseNumber;
+
+                      return (
+                        <div key={verse.verseNumber}>
+                          <div
+                            style={{
+                              padding: "12px",
+                              marginBottom: isViewingNotes ? 0 : "8px",
+                              backgroundColor: highlight ? highlight.color : "#f9f6f1",
+                              borderRadius: isViewingNotes ? "6px 6px 0 0" : "6px",
+                              border: "1px solid #e8dcc8",
+                              cursor: selectedVerse === verse.verseNumber ? "default" : "pointer",
+                              transition: "all 0.2s ease",
+                              borderBottom: isViewingNotes ? "none" : "1px solid #e8dcc8"
+                            }}
+                            onClick={() => {
+                              if (selectedVerse !== verse.verseNumber) {
+                                setSelectedVerse(verse.verseNumber);
+                                setViewingNotesForVerse(null);
+                              }
+                            }}
+                          >
+                            <div style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start"
+                            }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{
+                                  fontSize: "0.85rem",
+                                  fontWeight: "600",
+                                  color: "#6b8e5f",
+                                  marginBottom: "6px"
+                                }}>
+                                  Verse {verse.verseNumber}
+                                  {verseNotes.length > 0 && (
+                                    <span style={{
+                                      marginLeft: "8px",
+                                      fontSize: "0.75rem",
+                                      padding: "2px 6px",
+                                      background: "#d4a574",
+                                      color: "white",
+                                      borderRadius: "10px"
+                                    }}>
+                                      {verseNotes.length} note{verseNotes.length > 1 ? "s" : ""}
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{
+                                  fontSize: "1rem",
+                                  lineHeight: "1.6",
+                                  color: "#2c2416"
+                                }}>
+                                  {verse.text}
+                                </div>
+                              </div>
+                            </div>
+
+                            {selectedVerse === verse.verseNumber && (
+                              <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                                {PASTEL_COLORS.map((colorOption) => (
+                                  <button
+                                    key={colorOption.value}
+                                    className="icon-btn"
+                                    onClick={() => {
+                                      setSelectedColor(colorOption.value);
+                                      addHighlightToGroupStudy(verse.verseNumber, colorOption.value);
+                                    }}
+                                    style={{
+                                      backgroundColor: colorOption.value,
+                                      width: "24px",
+                                      height: "24px",
+                                      borderRadius: "50%",
+                                      border: "2px solid #d4c5a9",
+                                      padding: 0
+                                    }}
+                                    title={`Highlight with ${colorOption.name}`}
+                                  />
+                                ))}
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => {
+                                    setViewingNotesForVerse(verse.verseNumber);
+                                    setSelectedVerse(null);
+                                  }}
+                                  style={{ fontSize: "0.75rem", padding: "4px 8px" }}
+                                >
+                                  <Icons.StickyNote style={{ width: "12px", height: "12px" }} /> View/Add Notes
+                                </button>
+                                {highlight && (
+                                  <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => removeHighlightFromGroupStudy(verse.verseNumber)}
+                                    style={{ fontSize: "0.75rem", padding: "4px 8px" }}
+                                  >
+                                    <Icons.Trash style={{ width: "12px", height: "12px" }} /> Remove Highlight
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Notes panel for highlighted verses */}
+                          {isViewingNotes && (
+                            <div className="verse-notes-panel" style={{
+                              marginTop: 0,
+                              marginBottom: "8px",
+                              padding: "12px",
+                              backgroundColor: "#f9f6f1",
+                              borderRadius: "0 0 6px 6px",
+                              border: "1px solid #d4c5a9",
+                              borderTop: "1px dashed #d4c5a9"
+                            }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                                <h4 style={{ margin: 0, color: "#2c2416", fontSize: "0.95rem" }}>
+                                  <Icons.StickyNote style={{ width: "16px", height: "16px" }} /> Notes for Verse {verse.verseNumber}
+                                </h4>
+                                <div style={{ display: "flex", gap: "8px" }}>
+                                  <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => {
+                                      setShowNoteForm(!showNoteForm);
+                                      setEditingGroupNote(null);
+                                      setNoteText("");
+                                    }}
+                                    style={{ fontSize: "0.8rem", padding: "4px 8px" }}
+                                  >
+                                    <Icons.Plus style={{ width: "12px", height: "12px" }} /> Add Note
+                                  </button>
+                                  <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => {
+                                      setViewingNotesForVerse(null);
+                                      setShowNoteForm(false);
+                                      setEditingGroupNote(null);
+                                      setNoteText("");
+                                    }}
+                                    style={{ fontSize: "0.8rem", padding: "4px 8px" }}
+                                  >
+                                    Close
+                                  </button>
+                                </div>
+                              </div>
+
+                              {showNoteForm && (
+                                <div style={{ marginBottom: "10px" }}>
+                                  <div style={{ marginBottom: "8px" }}>
+                                    <div style={{ fontSize: "0.8rem", marginBottom: "4px", color: "#5a4d37" }}>Select color:</div>
+                                    <div style={{ display: "flex", gap: "6px", marginBottom: "8px" }}>
+                                      {PASTEL_COLORS.map((color) => (
+                                        <button
+                                          key={color.value}
+                                          onClick={() => setSelectedColor(color.value)}
+                                          style={{
+                                            width: "28px",
+                                            height: "28px",
+                                            borderRadius: "50%",
+                                            backgroundColor: color.value,
+                                            border: selectedColor === color.value ? "3px solid #2c2416" : "2px solid #d4c5a9",
+                                            cursor: "pointer"
+                                          }}
+                                          title={color.name}
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <textarea
+                                    className="practice-input"
+                                    rows="3"
+                                    placeholder="Write your note here..."
+                                    value={noteText}
+                                    onChange={(e) => setNoteText(e.target.value)}
+                                    style={{ marginBottom: "8px", fontSize: "0.9rem" }}
+                                  />
+                                  <div style={{ display: "flex", gap: "8px" }}>
+                                    <button
+                                      className="btn btn-success btn-sm"
+                                      onClick={() => {
+                                        if (editingGroupNote) {
+                                          editNoteInGroupStudy(editingGroupNote.id, noteText, selectedColor);
+                                          setEditingGroupNote(null);
+                                          setNoteText("");
+                                          setShowNoteForm(false);
+                                        } else {
+                                          addNoteToGroupStudy();
+                                        }
+                                      }}
+                                      disabled={!noteText.trim()}
+                                      style={{ fontSize: "0.85rem", padding: "6px 12px" }}
+                                    >
+                                      <Icons.Save style={{ width: "14px", height: "14px" }} /> {editingGroupNote ? "Update Note" : "Save Note"}
+                                    </button>
+                                    {editingGroupNote && (
+                                      <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => {
+                                          setEditingGroupNote(null);
+                                          setNoteText("");
+                                          setShowNoteForm(false);
+                                        }}
+                                        style={{ fontSize: "0.85rem", padding: "6px 12px" }}
+                                      >
+                                        Cancel
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {verseNotes.length === 0 ? (
+                                <p style={{ fontSize: "0.85rem", color: "#8b7355", fontStyle: "italic", margin: 0 }}>
+                                  No notes yet. Click "Add Note" to create one.
+                                </p>
+                              ) : (
+                                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                  {verseNotes.map((note) => (
+                                    <div
+                                      key={note.id}
+                                      style={{
+                                        padding: "8px",
+                                        backgroundColor: note.color,
+                                        borderRadius: "4px",
+                                        fontSize: "0.9rem"
+                                      }}
+                                    >
+                                      <div>{note.text}</div>
+                                      <div style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        marginTop: "6px",
+                                        fontSize: "0.75rem",
+                                        color: "#5a4d37"
+                                      }}>
+                                        <div>
+                                          <div style={{ fontWeight: "600" }}>{note.userName}</div>
+                                          <span>{new Date(note.timestamp).toLocaleString()}</span>
+                                          {note.edited && <span style={{ marginLeft: "4px", fontStyle: "italic" }}>(edited)</span>}
+                                        </div>
+                                        {note.userId === user?.uid && (
+                                          <div style={{ display: "flex", gap: "4px" }}>
+                                            <button
+                                              className="icon-btn"
+                                              onClick={() => {
+                                                setEditingGroupNote(note);
+                                                setNoteText(note.text);
+                                                setSelectedColor(note.color);
+                                                setShowNoteForm(true);
+                                              }}
+                                              title="Edit note"
+                                              style={{ fontSize: "0.8rem" }}
+                                            >
+                                              <Icons.Edit style={{ width: "12px", height: "12px" }} />
+                                            </button>
+                                            <button
+                                              className="icon-btn"
+                                              onClick={() => deleteNoteFromGroupStudy(note.id)}
+                                              title="Delete note"
+                                              style={{ fontSize: "0.8rem" }}
+                                            >
+                                              <Icons.Trash style={{ width: "12px", height: "12px" }} />
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div style={{
-                          fontSize: "1rem",
-                          lineHeight: "1.6",
-                          color: "#2c2416"
-                        }}>
-                          {verse.text}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -4404,15 +5100,75 @@ function App() {
                           }}
                         >
                           <div style={{
-                            fontSize: "0.75rem",
-                            fontWeight: "600",
-                            color: "#d4a574",
-                            marginBottom: "4px"
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start"
                           }}>
-                            POINT {idx + 1}
-                          </div>
-                          <div style={{ color: "#2c2416", lineHeight: "1.5" }}>
-                            {point}
+                            <div style={{ flex: 1 }}>
+                              <div style={{
+                                fontSize: "0.75rem",
+                                fontWeight: "600",
+                                color: "#d4a574",
+                                marginBottom: "4px"
+                              }}>
+                                POINT {idx + 1}
+                              </div>
+                              {editingMainPoint?.index === idx ? (
+                                <div>
+                                  <input
+                                    type="text"
+                                    className="input"
+                                    value={editingMainPoint.text}
+                                    onChange={(e) => setEditingMainPoint({ ...editingMainPoint, text: e.target.value })}
+                                    style={{ marginBottom: "8px", fontSize: "0.95rem" }}
+                                  />
+                                  <div style={{ display: "flex", gap: "8px" }}>
+                                    <button
+                                      className="btn btn-success btn-sm"
+                                      onClick={() => {
+                                        editMainPoint(idx, editingMainPoint.text);
+                                        setEditingMainPoint(null);
+                                      }}
+                                      disabled={!editingMainPoint.text.trim()}
+                                      style={{ fontSize: "0.85rem", padding: "4px 8px" }}
+                                    >
+                                      <Icons.Save style={{ width: "12px", height: "12px" }} /> Save
+                                    </button>
+                                    <button
+                                      className="btn btn-secondary btn-sm"
+                                      onClick={() => setEditingMainPoint(null)}
+                                      style={{ fontSize: "0.85rem", padding: "4px 8px" }}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div style={{ color: "#2c2416", lineHeight: "1.5" }}>
+                                  {point}
+                                </div>
+                              )}
+                            </div>
+                            {currentStudy.isLead && editingMainPoint?.index !== idx && (
+                              <div style={{ display: "flex", gap: "4px", marginLeft: "8px" }}>
+                                <button
+                                  className="icon-btn"
+                                  onClick={() => setEditingMainPoint({ index: idx, text: point })}
+                                  title="Edit main point"
+                                  style={{ fontSize: "0.8rem" }}
+                                >
+                                  <Icons.Edit style={{ width: "14px", height: "14px" }} />
+                                </button>
+                                <button
+                                  className="icon-btn"
+                                  onClick={() => deleteMainPoint(idx)}
+                                  title="Delete main point"
+                                  style={{ fontSize: "0.8rem" }}
+                                >
+                                  <Icons.Trash style={{ width: "14px", height: "14px" }} />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -4461,7 +5217,7 @@ function App() {
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                       {thoughts.map((thought, idx) => (
                         <div
-                          key={idx}
+                          key={thought.id || idx}
                           style={{
                             padding: "12px",
                             background: "#f9f6f1",
@@ -4472,45 +5228,237 @@ function App() {
                           <div style={{
                             display: "flex",
                             alignItems: "center",
+                            justifyContent: "space-between",
                             gap: "8px",
                             marginBottom: "8px"
                           }}>
-                            {thought.userPhoto && (
-                              <img
-                                src={thought.userPhoto}
-                                alt={thought.userName}
-                                style={{
-                                  width: "24px",
-                                  height: "24px",
-                                  borderRadius: "50%"
-                                }}
-                              />
-                            )}
-                            <div>
-                              <div style={{
-                                fontSize: "0.85rem",
-                                fontWeight: "600",
-                                color: "#2c2416"
-                              }}>
-                                {thought.userName}
-                              </div>
-                              <div style={{
-                                fontSize: "0.75rem",
-                                color: "#5a4d37"
-                              }}>
-                                {new Date(thought.timestamp).toLocaleString()}
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              {thought.userPhoto && (
+                                <img
+                                  src={thought.userPhoto}
+                                  alt={thought.userName}
+                                  style={{
+                                    width: "24px",
+                                    height: "24px",
+                                    borderRadius: "50%"
+                                  }}
+                                />
+                              )}
+                              <div>
+                                <div style={{
+                                  fontSize: "0.85rem",
+                                  fontWeight: "600",
+                                  color: "#2c2416"
+                                }}>
+                                  {thought.userName}
+                                </div>
+                                <div style={{
+                                  fontSize: "0.75rem",
+                                  color: "#5a4d37"
+                                }}>
+                                  {new Date(thought.timestamp).toLocaleString()}
+                                  {thought.edited && <span style={{ marginLeft: "4px", fontStyle: "italic" }}>(edited)</span>}
+                                </div>
                               </div>
                             </div>
+                            {thought.userId === user?.uid && (
+                              <div style={{ display: "flex", gap: "4px" }}>
+                                <button
+                                  className="icon-btn"
+                                  onClick={() => setEditingThought({ id: thought.id, text: thought.text })}
+                                  title="Edit thought"
+                                  style={{ fontSize: "0.8rem" }}
+                                >
+                                  <Icons.Edit style={{ width: "14px", height: "14px" }} />
+                                </button>
+                                <button
+                                  className="icon-btn"
+                                  onClick={() => deleteThought(thought.id)}
+                                  title="Delete thought"
+                                  style={{ fontSize: "0.8rem" }}
+                                >
+                                  <Icons.Trash style={{ width: "14px", height: "14px" }} />
+                                </button>
+                              </div>
+                            )}
                           </div>
+                          {editingThought?.id === thought.id ? (
+                            <div>
+                              <textarea
+                                className="input"
+                                value={editingThought.text}
+                                onChange={(e) => setEditingThought({ ...editingThought, text: e.target.value })}
+                                style={{ resize: "vertical", minHeight: "80px", marginBottom: "8px" }}
+                              />
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <button
+                                  className="btn btn-success btn-sm"
+                                  onClick={() => {
+                                    editThought(thought.id, editingThought.text);
+                                    setEditingThought(null);
+                                  }}
+                                  disabled={!editingThought.text.trim()}
+                                  style={{ fontSize: "0.85rem", padding: "4px 8px" }}
+                                >
+                                  <Icons.Save style={{ width: "12px", height: "12px" }} /> Save
+                                </button>
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => setEditingThought(null)}
+                                  style={{ fontSize: "0.85rem", padding: "4px 8px" }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{
+                              color: "#2c2416",
+                              lineHeight: "1.6"
+                            }}>
+                              {thought.text}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional Scripture References */}
+                <div style={{ marginBottom: "30px" }}>
+                  <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
+                    <Icons.Book /> Additional Scripture References
+                  </h3>
+
+                  <div style={{ marginBottom: "15px" }}>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Add a scripture reference (e.g., John 3:16, Psalm 23)"
+                        value={additionalReferenceInput}
+                        onChange={(e) => setAdditionalReferenceInput(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        className="btn btn-success"
+                        onClick={fetchAndAddAdditionalReference}
+                        disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
+                      >
+                        {loadingAdditionalReference ? (
+                          <>Loading...</>
+                        ) : (
+                          <><Icons.Plus /> Add</>
+                        )}
+                      </button>
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "#5a4d37", marginTop: "4px" }}>
+                      Search and add related scripture passages to your study
+                    </div>
+                  </div>
+
+                  {currentStudy.additionalReferences && currentStudy.additionalReferences.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                      {currentStudy.additionalReferences.map((ref) => (
+                        <div
+                          key={ref.id}
+                          style={{
+                            padding: "15px",
+                            background: "#f9f6f1",
+                            borderRadius: "8px",
+                            border: "1px solid #e8dcc8"
+                          }}
+                        >
                           <div style={{
-                            color: "#2c2416",
-                            lineHeight: "1.6"
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: "10px"
                           }}>
-                            {thought.text}
+                            <div style={{
+                              fontSize: "0.95rem",
+                              fontWeight: "600",
+                              color: "#6b8e5f"
+                            }}>
+                              {ref.reference}
+                            </div>
+                            <button
+                              className="icon-btn"
+                              onClick={() => removeAdditionalReference(ref.id)}
+                              title="Remove reference"
+                              style={{ fontSize: "0.8rem" }}
+                            >
+                              <Icons.Trash style={{ width: "14px", height: "14px" }} />
+                            </button>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            {ref.passages.map((verse, idx) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  padding: "10px",
+                                  background: "white",
+                                  borderRadius: "6px",
+                                  fontSize: "0.9rem",
+                                  lineHeight: "1.6",
+                                  color: "#2c2416"
+                                }}
+                              >
+                                <span style={{
+                                  fontSize: "0.75rem",
+                                  fontWeight: "600",
+                                  color: "#6b8e5f",
+                                  marginRight: "8px"
+                                }}>
+                                  v{verse.verseNumber}:
+                                </span>
+                                {verse.text}
+                              </div>
+                            ))}
                           </div>
                         </div>
                       ))}
                     </div>
+                  ) : (
+                    <div style={{
+                      padding: "20px",
+                      textAlign: "center",
+                      color: "#5a4d37",
+                      background: "#f9f6f1",
+                      borderRadius: "6px",
+                      fontStyle: "italic"
+                    }}>
+                      No additional references yet. Add scripture passages to complement your study.
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{
+                  display: "flex",
+                  gap: "10px",
+                  marginTop: "30px",
+                  paddingTop: "20px",
+                  borderTop: "1px solid #e8dcc8"
+                }}>
+                  {currentStudy.isLead ? (
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => deleteGroupStudy(currentStudy.id)}
+                      style={{ flex: 1 }}
+                    >
+                      <Icons.Trash /> Delete Study
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => leaveGroupStudy(currentStudy.id)}
+                      style={{ flex: 1 }}
+                    >
+                      Leave Study
+                    </button>
                   )}
                 </div>
               </div>
