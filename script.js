@@ -937,6 +937,13 @@ function Login({ onLogin, error }) {
 }
 
 // Bible Version Configuration
+const stripHtml = (html) => {
+  if (!html) return "";
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  return doc.body.textContent || "";
+};
+
 const BIBLE_VERSIONS = {
   KJV: {
     id: "de4e12af7f28f599-02",
@@ -963,7 +970,7 @@ const BibleAPI = {
       // Convert user input like "John 3:16" to API format
       const passageId = this.convertReferenceToPassageId(reference);
 
-      const url = `https://api.scripture.api.bible/v1/bibles/${bibleId}/passages/${passageId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=false&include-verse-spans=false`;
+      const url = `https://api.scripture.api.bible/v1/bibles/${bibleId}/passages/${passageId}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=true`;
 
       const response = await fetch(url, {
         headers: {
@@ -978,9 +985,12 @@ const BibleAPI = {
 
       const data = await response.json();
 
+      const content = data.data.content || "";
+
       return {
         reference: data.data.reference,
-        text: data.data.content.trim(),
+        text: stripHtml(content).trim(),
+        rawContent: content,
         translation: version.abbreviation,
         version: version.abbreviation,
       };
@@ -1023,7 +1033,7 @@ const BibleAPI = {
       const verse = data.data.verses[0];
 
       // Fetch the full verse content
-      const verseUrl = `https://api.scripture.api.bible/v1/bibles/${bibleId}/verses/${verse.id}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=false`;
+      const verseUrl = `https://api.scripture.api.bible/v1/bibles/${bibleId}/verses/${verse.id}?content-type=text&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=true`;
 
       const verseResponse = await fetch(verseUrl, {
         headers: {
@@ -1035,9 +1045,12 @@ const BibleAPI = {
 
       const verseData = await verseResponse.json();
 
+      const content = verseData.data.content || "";
+
       return {
         reference: verseData.data.reference,
-        text: verseData.data.content.trim(),
+        text: stripHtml(content).trim(),
+        rawContent: content,
         translation: version.abbreviation,
         version: version.abbreviation,
       };
@@ -1451,6 +1464,80 @@ function App() {
     }
   }, [verses, currentMemorizedIndex]);
 
+  const parseVersesFromContent = (content, reference) => {
+    if (!content) return [];
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, "text/html");
+
+    const verseNodes = Array.from(
+      doc.querySelectorAll("[data-number], [data-verse-id], [data-usfm], [data-v]")
+    );
+
+    const verses = verseNodes
+      .map((node) => {
+        let verseNumber =
+          node.getAttribute("data-number") ||
+          node.getAttribute("data-v") ||
+          node.getAttribute("data-verse-id");
+
+        if (verseNumber && verseNumber.includes(".")) {
+          verseNumber = verseNumber.split(".").pop();
+        }
+
+        if (!verseNumber) {
+          const usfm = node.getAttribute("data-usfm");
+          const match = usfm ? usfm.match(/\.(\d+)$/) : null;
+          verseNumber = match ? match[1] : null;
+        }
+
+        const text = (node.textContent || "")
+          .replace(/^[\s\u00A0]*[\[(]?\d+[\])]?[\s\u00A0]*/, "")
+          .trim();
+
+        if (!verseNumber || !text) return null;
+        return { verseNumber: verseNumber.toString(), text };
+      })
+      .filter(Boolean);
+
+    if (verses.length > 0) {
+      return verses;
+    }
+
+    const plainText = (doc.body.textContent || content).replace(/\s+/g, " ").trim();
+    const normalizedText = plainText.replace(/\[(\d+)\]/g, " $1 ");
+    const refMatch = reference?.match(/(\d+):(\d+)(?:-(\d+))?/);
+
+    if (refMatch) {
+      const startVerse = parseInt(refMatch[2]);
+      const endVerse = refMatch[3] ? parseInt(refMatch[3]) : startVerse;
+      const verseCount = endVerse - startVerse + 1;
+      const parts = normalizedText
+        .split(/(?=\b\d{1,3}\b)/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      if (parts.length >= verseCount) {
+        return parts.slice(0, verseCount).map((part, idx) => {
+          const match = part.match(/^(\d{1,3})\s+(.*)$/);
+          const verseNumber = match ? match[1] : startVerse + idx;
+          const text = match ? match[2] : part;
+          return { verseNumber: verseNumber.toString(), text: text.trim() };
+        });
+      }
+    }
+
+    return normalizedText
+      .split(/(?=\b\d{1,3}\b)/)
+      .map((part) => part.trim())
+      .map((part) => {
+        const match = part.match(/^(\d{1,3})\s+(.*)$/);
+        if (!match) return null;
+        return { verseNumber: match[1], text: match[2].trim() };
+      })
+      .filter(Boolean);
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
@@ -1462,50 +1549,20 @@ function App() {
       const verse = await BibleAPI.fetchVerse(searchQuery, "KJV");
       setCurrentVerse(verse);
 
-      // Parse the text into individual verses
-      const text = verse.text;
-      const reference = verse.reference;
+      const parsedVerses = parseVersesFromContent(
+        verse.rawContent || verse.text,
+        verse.reference
+      );
 
-      // Extract verse numbers from the reference (e.g., "John 3:16-21" -> 16 to 21)
-      const refMatch = reference.match(/(\d+):(\d+)(?:-(\d+))?/);
-
-      if (refMatch) {
-        const startVerse = parseInt(refMatch[2]);
-        const endVerse = refMatch[3] ? parseInt(refMatch[3]) : startVerse;
-
-        // Split the text by verse patterns
-        // The text might have verse numbers or we split by sentences
-        const verses = [];
-        const sentences = text.split(/(?<=[.!?])\s+/);
-        const versesPerSentence = Math.ceil(sentences.length / (endVerse - startVerse + 1));
-
-        for (let i = startVerse; i <= endVerse; i++) {
-          const sentenceIndex = (i - startVerse) * versesPerSentence;
-          const verseText = sentences.slice(sentenceIndex, sentenceIndex + versesPerSentence).join(" ");
-
-          if (verseText) {
-            verses.push({
-              verseNumber: i.toString(),
-              text: verseText.trim(),
-            });
-          }
-        }
-
-        // If splitting didn't work well, just put all text in one verse
-        if (verses.length === 0 || verses.every(v => !v.text)) {
-          verses.push({
-            verseNumber: startVerse.toString() + (endVerse > startVerse ? "-" + endVerse : ""),
-            text: text,
-          });
-        }
-
-        setSearchVerses(verses);
+      if (parsedVerses.length > 0) {
+        setSearchVerses(parsedVerses);
       } else {
-        // Single verse or couldn't parse - just add as one verse
-        setSearchVerses([{
-          verseNumber: "1",
-          text: text,
-        }]);
+        setSearchVerses([
+          {
+            verseNumber: "1",
+            text: verse.text,
+          },
+        ]);
       }
 
       SoundEffects.playSuccess();
