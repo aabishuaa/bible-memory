@@ -995,7 +995,7 @@ const FirestoreService = {
     },
 
     // Add an additional reference to a group study
-    async addAdditionalReference(studyId, reference, passages) {
+    async addAdditionalReference(studyId, reference, passages, label = "") {
         try {
             const studyRef = db.collection('groupStudies').doc(studyId);
 
@@ -1003,6 +1003,7 @@ const FirestoreService = {
                 id: Date.now().toString(),
                 reference: reference,
                 passages: passages,
+                label: label || "",
                 addedAt: new Date().toISOString()
             };
 
