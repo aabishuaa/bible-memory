@@ -3170,7 +3170,33 @@ function App() {
                                 </button>
                               </div>
                             </div>
-                            <div className="verse-item-text">{verse.text}</div>
+                            <div className="verse-item-text">
+                              {(() => {
+                                const parsedVerses = parseVersesFromContent(
+                                  verse.rawContent || verse.text,
+                                  verse.reference
+                                );
+
+                                if (parsedVerses.length > 0) {
+                                  return parsedVerses.filter(v => v && v.verseNumber && v.text).map((v) => (
+                                    <div key={v.verseNumber} style={{ marginBottom: "10px" }}>
+                                      <span className="verse-number" style={{
+                                        fontWeight: "bold",
+                                        color: "#5a4d37",
+                                        marginRight: "8px",
+                                        fontSize: "0.9em",
+                                        verticalAlign: "super",
+                                      }}>
+                                        {v.verseNumber}
+                                      </span>
+                                      <span>{v.text}</span>
+                                    </div>
+                                  ));
+                                } else {
+                                  return verse.text;
+                                }
+                              })()}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -3261,7 +3287,34 @@ function App() {
                               </button>
                             </div>
                           </div>
-                          <div className="verse-item-text">{filteredVerses[displayIndex].text}</div>
+                          <div className="verse-item-text">
+                            {(() => {
+                              const verse = filteredVerses[displayIndex];
+                              const parsedVerses = parseVersesFromContent(
+                                verse.rawContent || verse.text,
+                                verse.reference
+                              );
+
+                              if (parsedVerses.length > 0) {
+                                return parsedVerses.filter(v => v && v.verseNumber && v.text).map((v) => (
+                                  <div key={v.verseNumber} style={{ marginBottom: "10px" }}>
+                                    <span className="verse-number" style={{
+                                      fontWeight: "bold",
+                                      color: "#5a4d37",
+                                      marginRight: "8px",
+                                      fontSize: "0.9em",
+                                      verticalAlign: "super",
+                                    }}>
+                                      {v.verseNumber}
+                                    </span>
+                                    <span>{v.text}</span>
+                                  </div>
+                                ));
+                              } else {
+                                return verse.text;
+                              }
+                            })()}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -3367,7 +3420,33 @@ function App() {
                     className="verse-display"
                     style={{ marginBottom: "20px" }}
                   >
-                    <div className="verse-text">{practiceVerse.text}</div>
+                    <div className="verse-text">
+                      {(() => {
+                        const parsedVerses = parseVersesFromContent(
+                          practiceVerse.rawContent || practiceVerse.text,
+                          practiceVerse.reference
+                        );
+
+                        if (parsedVerses.length > 0) {
+                          return parsedVerses.filter(v => v && v.verseNumber && v.text).map((v) => (
+                            <div key={v.verseNumber} style={{ marginBottom: "10px" }}>
+                              <span className="verse-number" style={{
+                                fontWeight: "bold",
+                                color: "#5a4d37",
+                                marginRight: "8px",
+                                fontSize: "0.9em",
+                                verticalAlign: "super",
+                              }}>
+                                {v.verseNumber}
+                              </span>
+                              <span>{v.text}</span>
+                            </div>
+                          ));
+                        } else {
+                          return practiceVerse.text;
+                        }
+                      })()}
+                    </div>
                   </div>
                 )}
 
@@ -3399,7 +3478,33 @@ function App() {
                     className="verse-display"
                     style={{ marginBottom: "20px" }}
                   >
-                    <div className="verse-text">{practiceVerse.text}</div>
+                    <div className="verse-text">
+                      {(() => {
+                        const parsedVerses = parseVersesFromContent(
+                          practiceVerse.rawContent || practiceVerse.text,
+                          practiceVerse.reference
+                        );
+
+                        if (parsedVerses.length > 0) {
+                          return parsedVerses.filter(v => v && v.verseNumber && v.text).map((v) => (
+                            <div key={v.verseNumber} style={{ marginBottom: "10px" }}>
+                              <span className="verse-number" style={{
+                                fontWeight: "bold",
+                                color: "#5a4d37",
+                                marginRight: "8px",
+                                fontSize: "0.9em",
+                                verticalAlign: "super",
+                              }}>
+                                {v.verseNumber}
+                              </span>
+                              <span>{v.text}</span>
+                            </div>
+                          ));
+                        } else {
+                          return practiceVerse.text;
+                        }
+                      })()}
+                    </div>
                   </div>
                 )}
 
@@ -5748,7 +5853,33 @@ function App() {
                               </span>
                             </div>
                           </div>
-                          <div className="verse-item-text">{verse.text}</div>
+                          <div className="verse-item-text">
+                            {(() => {
+                              const parsedVerses = parseVersesFromContent(
+                                verse.rawContent || verse.text,
+                                verse.reference
+                              );
+
+                              if (parsedVerses.length > 0) {
+                                return parsedVerses.filter(v => v && v.verseNumber && v.text).map((v) => (
+                                  <div key={v.verseNumber} style={{ marginBottom: "10px" }}>
+                                    <span className="verse-number" style={{
+                                      fontWeight: "bold",
+                                      color: "#5a4d37",
+                                      marginRight: "8px",
+                                      fontSize: "0.9em",
+                                      verticalAlign: "super",
+                                    }}>
+                                      {v.verseNumber}
+                                    </span>
+                                    <span>{v.text}</span>
+                                  </div>
+                                ));
+                              } else {
+                                return verse.text;
+                              }
+                            })()}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -5812,7 +5943,32 @@ function App() {
                           </div>
                         </div>
                         <div className="verse-item-text">
-                          {memorizedVerses[displayProgressIndex].text}
+                          {(() => {
+                            const verse = memorizedVerses[displayProgressIndex];
+                            const parsedVerses = parseVersesFromContent(
+                              verse.rawContent || verse.text,
+                              verse.reference
+                            );
+
+                            if (parsedVerses.length > 0) {
+                              return parsedVerses.filter(v => v && v.verseNumber && v.text).map((v) => (
+                                <div key={v.verseNumber} style={{ marginBottom: "10px" }}>
+                                  <span className="verse-number" style={{
+                                    fontWeight: "bold",
+                                    color: "#5a4d37",
+                                    marginRight: "8px",
+                                    fontSize: "0.9em",
+                                    verticalAlign: "super",
+                                  }}>
+                                    {v.verseNumber}
+                                  </span>
+                                  <span>{v.text}</span>
+                                </div>
+                              ));
+                            } else {
+                              return verse.text;
+                            }
+                          })()}
                         </div>
                       </div>
                     </div>
