@@ -2257,10 +2257,13 @@ function App() {
       const studyData = {
         title: studyTitle.trim(),
         reference: studyReference,
-        passages: studyPassages,
+        passages: studyPassages.filter(v => v && v.verseNumber && v.text),
         highlights: studyHighlights,
         notes: studyNotes,
-        additionalReferences: studyAdditionalReferences,
+        additionalReferences: studyAdditionalReferences.map(ref => ({
+          ...ref,
+          passages: ref.passages.filter(v => v && v.verseNumber && v.text)
+        })),
       };
 
       if (currentStudy) {
@@ -2340,7 +2343,7 @@ function App() {
       const duplicatedStudy = {
         title: study.title + " (Copy)",
         reference: study.reference,
-        passages: study.passages,
+        passages: (study.passages || []).filter(v => v && v.verseNumber && v.text),
         highlights: [],
         notes: [],
       };
@@ -2397,7 +2400,7 @@ function App() {
       const groupStudyData = {
         title: studyTitle,
         reference: studyReference,
-        passages: studyPassages,
+        passages: studyPassages.filter(v => v && v.verseNumber && v.text),
         mainPoints: mainPoints,
         leadName: user.displayName || user.email,
         leadPhoto: user.photoURL || null,
@@ -3023,7 +3026,7 @@ function App() {
                     </span>
                   </div>
                   <div className="verse-text">
-                    {searchVerses.map((verse) => (
+                    {searchVerses.filter(v => v && v.verseNumber && v.text).map((verse) => (
                       <div key={verse.verseNumber} style={{ marginBottom: "10px" }}>
                         <span className="verse-number" style={{
                           fontWeight: "bold",
@@ -3117,7 +3120,7 @@ function App() {
                     {showAllVerses ? (
                       // Display all verses in a list
                       <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                        {verses.map((verse) => (
+                        {verses.filter(v => v && v.text).map((verse) => (
                           <div
                             key={verse.id}
                             className={`verse-item ${verse.memorized ? "memorized" : ""}`}
@@ -4474,7 +4477,7 @@ function App() {
                                   </span>
                                   {ref.reference}
                                   <span style={{ fontSize: "0.75rem", color: "#8b6f47" }}>
-                                    ({ref.passages.length} verse{ref.passages.length > 1 ? "s" : ""})
+                                    ({ref.passages.filter(v => v && v.verseNumber && v.text).length} verse{ref.passages.filter(v => v && v.verseNumber && v.text).length > 1 ? "s" : ""})
                                   </span>
                                 </div>
                                 <button
@@ -4488,7 +4491,7 @@ function App() {
                               </div>
                               {!isCollapsed && (
                               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                {ref.passages.map((verse, idx) => (
+                                {ref.passages.filter(v => v && v.verseNumber && v.text).map((verse, idx) => (
                                   <div
                                     key={idx}
                                     style={{
@@ -5553,7 +5556,7 @@ function App() {
                               </span>
                               {ref.reference}
                               <span style={{ fontSize: "0.75rem", color: "#8b6f47" }}>
-                                ({ref.passages.length} verse{ref.passages.length > 1 ? "s" : ""})
+                                ({ref.passages.filter(v => v && v.verseNumber && v.text).length} verse{ref.passages.filter(v => v && v.verseNumber && v.text).length > 1 ? "s" : ""})
                               </span>
                             </div>
                             <button
@@ -5567,7 +5570,7 @@ function App() {
                           </div>
                           {!isCollapsed && (
                           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                            {ref.passages.map((verse, idx) => (
+                            {ref.passages.filter(v => v && v.verseNumber && v.text).map((verse, idx) => (
                               <div
                                 key={idx}
                                 style={{
@@ -5715,7 +5718,7 @@ function App() {
                   {showAllVerses ? (
                     // Display all memorized verses in a list
                     <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                      {memorizedVerses.map((verse) => (
+                      {memorizedVerses.filter(v => v && v.text).map((verse) => (
                         <div
                           key={verse.id}
                           className="verse-item memorized"
