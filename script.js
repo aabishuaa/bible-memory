@@ -2465,7 +2465,7 @@ function App() {
     setCurrentStudy(study);
     setStudyTitle(study.title);
     setStudyReference(study.reference);
-    setStudyPassages(study.passages || []);
+    setStudyPassages((study.passages || []).filter(v => v && v.verseNumber && v.text));
     setMainPoints(study.mainPoints || []);
     setThoughts(study.thoughts || []);
     setStudyNotes(study.notes || []);
@@ -5025,12 +5025,12 @@ function App() {
                             }}>
                               <div style={{ flex: 1 }}>
                                 <div style={{
-                                  fontSize: "0.85rem",
-                                  fontWeight: "600",
-                                  color: "#6b8e5f",
+                                  fontSize: "0.9rem",
+                                  fontWeight: "700",
+                                  color: "#8b6f47",
                                   marginBottom: "6px"
                                 }}>
-                                  Verse {verse.verseNumber}
+                                  {verse.verseNumber}
                                   {verseNotes.length > 0 && (
                                     <span style={{
                                       marginLeft: "8px",
