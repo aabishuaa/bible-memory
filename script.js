@@ -1609,20 +1609,33 @@ function App() {
   };
 
   const handleToggleMemorized = async (id) => {
+    const verse = verses.find((v) => v.id === id);
+    if (!verse) return;
+
+    const wasMemorized = verse.memorized;
+
+    // Optimistically update the UI immediately
+    const optimisticVerses = verses.map((v) =>
+      v.id === id ? { ...v, memorized: !v.memorized } : v
+    );
+    setVerses(optimisticVerses);
+
+    // Play sound/animation immediately for better UX
+    if (!wasMemorized) {
+      SoundEffects.playCelebration();
+      Confetti.create();
+    } else {
+      SoundEffects.playClick();
+    }
+
+    // Update the database in the background
     try {
-      const verse = verses.find((v) => v.id === id);
       const updatedVerses = await FirestoreService.toggleMemorized(id);
       setVerses(updatedVerses);
-
-      // If marking as memorized, play celebration
-      if (verse && !verse.memorized) {
-        SoundEffects.playCelebration();
-        Confetti.create();
-      } else {
-        SoundEffects.playClick();
-      }
     } catch (error) {
       console.error("Error toggling memorized status:", error);
+      // Rollback on error
+      setVerses(verses);
       setError("Failed to update verse. Please try again.");
       SoundEffects.playError();
     }
@@ -2054,50 +2067,19 @@ function App() {
       // Fetch the passage - this will get a range if specified (e.g., "John 3:16-21")
       const verseData = await BibleAPI.fetchVerse(studyReference, "KJV");
 
-      // Parse the text into individual verses
-      // The API returns the full passage text, we need to split it into verses
-      const text = verseData.text;
-      const reference = verseData.reference;
+      // Parse the content into individual verses using the proper parser
+      const parsedVerses = parseVersesFromContent(
+        verseData.rawContent || verseData.text,
+        verseData.reference
+      );
 
-      // Extract verse numbers from the reference (e.g., "John 3:16-21" -> 16 to 21)
-      const refMatch = reference.match(/(\d+):(\d+)(?:-(\d+))?/);
-
-      if (refMatch) {
-        const startVerse = parseInt(refMatch[2]);
-        const endVerse = refMatch[3] ? parseInt(refMatch[3]) : startVerse;
-
-        // Split the text by verse patterns
-        // The text might have verse numbers or we split by sentences
-        const verses = [];
-        const sentences = text.split(/(?<=[.!?])\s+/);
-        const versesPerSentence = Math.ceil(sentences.length / (endVerse - startVerse + 1));
-
-        for (let i = startVerse; i <= endVerse; i++) {
-          const sentenceIndex = (i - startVerse) * versesPerSentence;
-          const verseText = sentences.slice(sentenceIndex, sentenceIndex + versesPerSentence).join(" ");
-
-          if (verseText) {
-            verses.push({
-              verseNumber: i.toString(),
-              text: verseText.trim(),
-            });
-          }
-        }
-
-        // If splitting didn't work well, just put all text in one verse
-        if (verses.length === 0 || verses.every(v => !v.text)) {
-          verses.push({
-            verseNumber: startVerse.toString() + (endVerse > startVerse ? "-" + endVerse : ""),
-            text: text,
-          });
-        }
-
-        setStudyPassages(verses);
+      if (parsedVerses.length > 0) {
+        setStudyPassages(parsedVerses);
       } else {
-        // Single verse or couldn't parse - just add as one verse
+        // Fallback: if parsing failed, use the whole text as a single verse
         setStudyPassages([{
           verseNumber: "1",
-          text: text,
+          text: verseData.text,
         }]);
       }
 
@@ -2750,53 +2732,26 @@ function App() {
 
     try {
       const verseData = await BibleAPI.fetchVerse(additionalReferenceInput, "KJV");
-      const text = verseData.text;
-      const reference = verseData.reference;
 
-      // Parse into verses similar to fetchStudyPassage
-      const refMatch = reference.match(/(\d+):(\d+)(?:-(\d+))?/);
-      const verses = [];
+      // Parse into verses using the proper parser
+      const parsedVerses = parseVersesFromContent(
+        verseData.rawContent || verseData.text,
+        verseData.reference
+      );
 
-      if (refMatch) {
-        const startVerse = parseInt(refMatch[2]);
-        const endVerse = refMatch[3] ? parseInt(refMatch[3]) : startVerse;
-
-        const sentences = text.split(/(?<=[.!?])\s+/);
-        const versesPerSentence = Math.ceil(sentences.length / (endVerse - startVerse + 1));
-
-        for (let i = startVerse; i <= endVerse; i++) {
-          const sentenceIndex = (i - startVerse) * versesPerSentence;
-          const verseText = sentences.slice(sentenceIndex, sentenceIndex + versesPerSentence).join(" ");
-
-          if (verseText) {
-            verses.push({
-              verseNumber: i.toString(),
-              text: verseText.trim(),
-            });
-          }
-        }
-
-        if (verses.length === 0 || verses.every(v => !v.text)) {
-          verses.push({
-            verseNumber: startVerse.toString() + (endVerse > startVerse ? "-" + endVerse : ""),
-            text: text,
-          });
-        }
-      } else {
-        verses.push({
-          verseNumber: "1",
-          text: text,
-        });
-      }
+      const verses = parsedVerses.length > 0 ? parsedVerses : [{
+        verseNumber: "1",
+        text: verseData.text,
+      }];
 
       // Add to the study (group or personal)
       if (studyType === "group" && currentStudy) {
-        await addAdditionalReference(reference, verses);
+        await addAdditionalReference(verseData.reference, verses);
       } else {
         // For personal studies, add to local state
         const newReference = {
           id: Date.now().toString(),
-          reference: reference,
+          reference: verseData.reference,
           passages: verses,
           addedAt: new Date().toISOString()
         };
@@ -4098,7 +4053,7 @@ function App() {
                       </h3>
 
                       <div className="study-passage">
-                        {studyPassages.map((verse) => {
+                        {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse) => {
                           const highlight = getVerseHighlight(verse.verseNumber);
                           const isSelected = selectedVerse === verse.verseNumber;
                           const isViewingNotes = viewingNotesForVerse === verse.verseNumber;
@@ -4294,7 +4249,7 @@ function App() {
                           <Icons.StickyNote /> All Notes Summary
                         </h3>
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                          {studyPassages.map((verse) => {
+                          {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse) => {
                             const verseNotes = studyNotes.filter(n => n.verseNumber === verse.verseNumber);
                             if (verseNotes.length === 0) return null;
 
@@ -4534,7 +4489,7 @@ function App() {
                       Scripture Passage
                     </h3>
                     <div className="study-passage-display">
-                      {studyPassages.map((verse) => (
+                      {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse) => (
                         <div
                           key={verse.verseNumber}
                           style={{
@@ -4802,7 +4757,7 @@ function App() {
                     Scripture Passage
                   </h3>
                   <div className="study-passage-display">
-                    {studyPassages.map((verse) => {
+                    {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse) => {
                       const highlight = studyHighlights.find(h => h.verseNumber === verse.verseNumber);
                       const verseNotes = studyNotes.filter(n => n.verseNumber === verse.verseNumber);
                       const isViewingNotes = viewingNotesForVerse === verse.verseNumber;
