@@ -1356,7 +1356,9 @@ function App() {
   const [editingThought, setEditingThought] = useState(null);
   const [editingGroupNote, setEditingGroupNote] = useState(null);
   const [additionalReferenceInput, setAdditionalReferenceInput] = useState("");
+  const [additionalReferenceLabel, setAdditionalReferenceLabel] = useState("");
   const [loadingAdditionalReference, setLoadingAdditionalReference] = useState(false);
+  const [collapsedReferences, setCollapsedReferences] = useState({});
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -1541,6 +1543,7 @@ function App() {
     return plainText
       .split(/(?=\b\d{1,3}\b)/)
       .map((part) => part.trim())
+      .filter(part => /^\d{1,3}\b/.test(part)) // Only keep parts that start with verse numbers
       .map((part) => {
         const match = part.match(/^(\d{1,3})\s+(.*)$/);
         if (!match) return null;
@@ -2675,9 +2678,9 @@ function App() {
   };
 
   // Add additional reference to group study
-  const addAdditionalReference = async (reference, passages) => {
+  const addAdditionalReference = async (reference, passages, label = "") => {
     try {
-      await FirestoreService.addAdditionalReference(currentStudy.id, reference, passages);
+      await FirestoreService.addAdditionalReference(currentStudy.id, reference, passages, label);
       SoundEffects.playSuccess();
     } catch (err) {
       console.error("Error adding reference:", err);
@@ -2764,19 +2767,21 @@ function App() {
 
       // Add to the study (group or personal)
       if (studyType === "group" && currentStudy) {
-        await addAdditionalReference(verseData.reference, verses);
+        await addAdditionalReference(verseData.reference, verses, additionalReferenceLabel);
       } else {
         // For personal studies, add to local state
         const newReference = {
           id: Date.now().toString(),
           reference: verseData.reference,
           passages: verses,
+          label: additionalReferenceLabel || "",
           addedAt: new Date().toISOString()
         };
         setStudyAdditionalReferences([...studyAdditionalReferences, newReference]);
         SoundEffects.playSuccess();
       }
       setAdditionalReferenceInput("");
+      setAdditionalReferenceLabel("");
       setLoadingAdditionalReference(false);
     } catch (err) {
       console.error("Error fetching additional reference:", err);
@@ -2789,6 +2794,15 @@ function App() {
   // Remove additional reference (for personal studies)
   const removeAdditionalReferenceFromPersonalStudy = (referenceId) => {
     setStudyAdditionalReferences(studyAdditionalReferences.filter(r => r.id !== referenceId));
+    SoundEffects.playClick();
+  };
+
+  // Toggle collapse/expand for reference cards
+  const toggleReferenceCollapse = (referenceId) => {
+    setCollapsedReferences(prev => ({
+      ...prev,
+      [referenceId]: !prev[referenceId]
+    }));
     SoundEffects.playClick();
   };
 
@@ -4318,57 +4332,96 @@ function App() {
                       </h3>
 
                       <div style={{ marginBottom: "15px" }}>
-                        <div style={{ display: "flex", gap: "8px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                           <input
                             type="text"
                             className="input"
-                            placeholder="Add a scripture reference (e.g., John 3:16, Psalm 23)"
-                            value={additionalReferenceInput}
-                            onChange={(e) => setAdditionalReferenceInput(e.target.value)}
-                            onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
-                            style={{ flex: 1 }}
+                            placeholder="Label (e.g., Supporting Context, Chapter 2) - Optional"
+                            value={additionalReferenceLabel}
+                            onChange={(e) => setAdditionalReferenceLabel(e.target.value)}
+                            style={{ width: "100%" }}
                           />
-                          <button
-                            className="btn btn-success"
-                            onClick={fetchAndAddAdditionalReference}
-                            disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
-                          >
-                            {loadingAdditionalReference ? (
-                              <>Loading...</>
-                            ) : (
-                              <><Icons.Plus /> Add</>
-                            )}
-                          </button>
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="Scripture reference (e.g., John 3:16, Psalm 23:1-6)"
+                              value={additionalReferenceInput}
+                              onChange={(e) => setAdditionalReferenceInput(e.target.value)}
+                              onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
+                              style={{ flex: 1 }}
+                            />
+                            <button
+                              className="btn btn-success"
+                              onClick={fetchAndAddAdditionalReference}
+                              disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
+                            >
+                              {loadingAdditionalReference ? (
+                                <>Loading...</>
+                              ) : (
+                                <><Icons.Plus /> Add</>
+                              )}
+                            </button>
+                          </div>
                         </div>
                         <div style={{ fontSize: "0.8rem", color: "#5a4d37", marginTop: "4px" }}>
-                          Search and add related scripture passages to your study
+                          Add related passages, supporting verses, or additional chapters to your study
                         </div>
                       </div>
 
                       {studyAdditionalReferences.length > 0 ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                          {studyAdditionalReferences.map((ref) => (
+                          {studyAdditionalReferences.map((ref) => {
+                            const isCollapsed = collapsedReferences[ref.id];
+                            return (
                             <div
                               key={ref.id}
                               style={{
                                 padding: "15px",
                                 background: "#f9f6f1",
                                 borderRadius: "8px",
-                                border: "1px solid #e8dcc8"
+                                border: "2px solid #d4a574",
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
                               }}
                             >
+                              {ref.label && (
+                                <div style={{
+                                  fontSize: "0.85rem",
+                                  fontWeight: "700",
+                                  color: "#8b6f47",
+                                  marginBottom: "8px",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.5px"
+                                }}>
+                                  {ref.label}
+                                </div>
+                              )}
                               <div style={{
                                 display: "flex",
                                 justifyContent: "space-between",
                                 alignItems: "center",
-                                marginBottom: "10px"
+                                marginBottom: isCollapsed ? "0" : "10px"
                               }}>
-                                <div style={{
-                                  fontSize: "0.95rem",
-                                  fontWeight: "600",
-                                  color: "#6b8e5f"
-                                }}>
+                                <div
+                                  style={{
+                                    fontSize: "1rem",
+                                    fontWeight: "600",
+                                    color: "#6b8e5f",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    flex: 1
+                                  }}
+                                  onClick={() => toggleReferenceCollapse(ref.id)}
+                                >
+                                  <span style={{ fontSize: "0.8rem" }}>
+                                    {isCollapsed ? "▶" : "▼"}
+                                  </span>
                                   {ref.reference}
+                                  <span style={{ fontSize: "0.75rem", color: "#8b6f47" }}>
+                                    ({ref.passages.length} verse{ref.passages.length > 1 ? "s" : ""})
+                                  </span>
                                 </div>
                                 <button
                                   className="icon-btn"
@@ -4379,6 +4432,7 @@ function App() {
                                   <Icons.Trash style={{ width: "14px", height: "14px" }} />
                                 </button>
                               </div>
+                              {!isCollapsed && (
                               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                                 {ref.passages.map((verse, idx) => (
                                   <div
@@ -4404,8 +4458,10 @@ function App() {
                                   </div>
                                 ))}
                               </div>
+                              )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <div style={{
@@ -5355,57 +5411,96 @@ function App() {
                   </h3>
 
                   <div style={{ marginBottom: "15px" }}>
-                    <div style={{ display: "flex", gap: "8px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                       <input
                         type="text"
                         className="input"
-                        placeholder="Add a scripture reference (e.g., John 3:16, Psalm 23)"
-                        value={additionalReferenceInput}
-                        onChange={(e) => setAdditionalReferenceInput(e.target.value)}
-                        onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
-                        style={{ flex: 1 }}
+                        placeholder="Label (e.g., Supporting Context, Chapter 2) - Optional"
+                        value={additionalReferenceLabel}
+                        onChange={(e) => setAdditionalReferenceLabel(e.target.value)}
+                        style={{ width: "100%" }}
                       />
-                      <button
-                        className="btn btn-success"
-                        onClick={fetchAndAddAdditionalReference}
-                        disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
-                      >
-                        {loadingAdditionalReference ? (
-                          <>Loading...</>
-                        ) : (
-                          <><Icons.Plus /> Add</>
-                        )}
-                      </button>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <input
+                          type="text"
+                          className="input"
+                          placeholder="Scripture reference (e.g., John 3:16, Psalm 23:1-6)"
+                          value={additionalReferenceInput}
+                          onChange={(e) => setAdditionalReferenceInput(e.target.value)}
+                          onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          className="btn btn-success"
+                          onClick={fetchAndAddAdditionalReference}
+                          disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
+                        >
+                          {loadingAdditionalReference ? (
+                            <>Loading...</>
+                          ) : (
+                            <><Icons.Plus /> Add</>
+                          )}
+                        </button>
+                      </div>
                     </div>
                     <div style={{ fontSize: "0.8rem", color: "#5a4d37", marginTop: "4px" }}>
-                      Search and add related scripture passages to your study
+                      Add related passages, supporting verses, or additional chapters to your study
                     </div>
                   </div>
 
                   {currentStudy.additionalReferences && currentStudy.additionalReferences.length > 0 ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-                      {currentStudy.additionalReferences.map((ref) => (
+                      {currentStudy.additionalReferences.map((ref) => {
+                        const isCollapsed = collapsedReferences[ref.id];
+                        return (
                         <div
                           key={ref.id}
                           style={{
                             padding: "15px",
                             background: "#f9f6f1",
                             borderRadius: "8px",
-                            border: "1px solid #e8dcc8"
+                            border: "2px solid #d4a574",
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
                           }}
                         >
+                          {ref.label && (
+                            <div style={{
+                              fontSize: "0.85rem",
+                              fontWeight: "700",
+                              color: "#8b6f47",
+                              marginBottom: "8px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px"
+                            }}>
+                              {ref.label}
+                            </div>
+                          )}
                           <div style={{
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
-                            marginBottom: "10px"
+                            marginBottom: isCollapsed ? "0" : "10px"
                           }}>
-                            <div style={{
-                              fontSize: "0.95rem",
-                              fontWeight: "600",
-                              color: "#6b8e5f"
-                            }}>
+                            <div
+                              style={{
+                                fontSize: "1rem",
+                                fontWeight: "600",
+                                color: "#6b8e5f",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                flex: 1
+                              }}
+                              onClick={() => toggleReferenceCollapse(ref.id)}
+                            >
+                              <span style={{ fontSize: "0.8rem" }}>
+                                {isCollapsed ? "▶" : "▼"}
+                              </span>
                               {ref.reference}
+                              <span style={{ fontSize: "0.75rem", color: "#8b6f47" }}>
+                                ({ref.passages.length} verse{ref.passages.length > 1 ? "s" : ""})
+                              </span>
                             </div>
                             <button
                               className="icon-btn"
@@ -5416,6 +5511,7 @@ function App() {
                               <Icons.Trash style={{ width: "14px", height: "14px" }} />
                             </button>
                           </div>
+                          {!isCollapsed && (
                           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                             {ref.passages.map((verse, idx) => (
                               <div
@@ -5441,8 +5537,10 @@ function App() {
                               </div>
                             ))}
                           </div>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div style={{
