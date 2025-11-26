@@ -1464,6 +1464,24 @@ function App() {
     }
   }, [verses, currentMemorizedIndex]);
 
+  // Clean verse text by removing verse numbers, brackets, and other artifacts
+  const cleanVerseText = (text) => {
+    if (!text) return "";
+    return text
+      // Remove leading verse numbers and whitespace
+      .replace(/^[\s\u00A0]*\d+\s*/, "")
+      // Remove bracketed numbers like [21] or [32]
+      .replace(/\[\d+\]/g, "")
+      // Remove bracket fragments like "32]" or "[21"
+      .replace(/\d+\]/g, "")
+      .replace(/\[\d+/g, "")
+      // Remove standalone brackets
+      .replace(/\[|\]/g, "")
+      // Clean up multiple spaces
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
   const parseVersesFromContent = (content, reference) => {
     if (!content) return [];
 
@@ -1487,7 +1505,7 @@ function App() {
           verseNumber = match ? match[1] : null;
         }
 
-        const text = (node.textContent || "").replace(/^[\s\u00A0]*\d+\s*/, "").trim();
+        const text = cleanVerseText(node.textContent || "");
 
         if (!verseNumber || !text) return null;
         return { verseNumber: verseNumber.toString(), text };
@@ -1515,7 +1533,7 @@ function App() {
           const match = part.match(/^(\d{1,3})\s+(.*)$/);
           const verseNumber = match ? match[1] : startVerse + idx;
           const text = match ? match[2] : part;
-          return { verseNumber: verseNumber.toString(), text: text.trim() };
+          return { verseNumber: verseNumber.toString(), text: cleanVerseText(text) };
         });
       }
     }
@@ -1526,7 +1544,7 @@ function App() {
       .map((part) => {
         const match = part.match(/^(\d{1,3})\s+(.*)$/);
         if (!match) return null;
-        return { verseNumber: match[1], text: match[2].trim() };
+        return { verseNumber: match[1], text: cleanVerseText(match[2]) };
       })
       .filter(Boolean);
   };
