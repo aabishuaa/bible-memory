@@ -371,6 +371,7 @@ const FirestoreService = {
                 passages: study.passages || [],
                 highlights: study.highlights || [],
                 notes: study.notes || [],
+                additionalReferences: study.additionalReferences || [],
                 dateCreated: firebase.firestore.FieldValue.serverTimestamp(),
                 dateModified: firebase.firestore.FieldValue.serverTimestamp()
             };

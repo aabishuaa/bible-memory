@@ -1518,6 +1518,7 @@ function App() {
       return verses;
     }
 
+    // Fallback: parse plain text
     const plainText = (doc.body.textContent || content).replace(/\s+/g, " ").trim();
     const refMatch = reference?.match(/(\d+):(\d+)(?:-(\d+))?/);
 
@@ -1525,31 +1526,74 @@ function App() {
       const startVerse = parseInt(refMatch[2]);
       const endVerse = refMatch[3] ? parseInt(refMatch[3]) : startVerse;
       const verseCount = endVerse - startVerse + 1;
-      const parts = plainText
-        .split(/(?=\b\d{1,3}\b)/)
-        .map((part) => part.trim())
-        .filter(Boolean);
 
+      // More robust splitting: split on verse numbers at word boundaries that are likely verse markers
+      // Use a lookbehind-like approach by splitting and preserving the verse numbers
+      const parts = [];
+      let currentVerse = null;
+      let currentText = "";
+
+      // Split by potential verse numbers (1-3 digits followed by space at start of text or after period/space)
+      const tokens = plainText.split(/\s+/);
+
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        // Check if this token is a verse number (1-3 digits)
+        if (/^\d{1,3}$/.test(token) && i < tokens.length - 1) {
+          // Save previous verse if exists
+          if (currentVerse !== null && currentText.trim()) {
+            parts.push({ verseNumber: currentVerse.toString(), text: currentText.trim() });
+          }
+          // Start new verse
+          currentVerse = parseInt(token);
+          currentText = "";
+        } else {
+          currentText += (currentText ? " " : "") + token;
+        }
+      }
+
+      // Save last verse
+      if (currentVerse !== null && currentText.trim()) {
+        parts.push({ verseNumber: currentVerse.toString(), text: currentText.trim() });
+      }
+
+      // If we successfully parsed verses, return them
       if (parts.length >= verseCount) {
-        return parts.slice(0, verseCount).map((part, idx) => {
-          const match = part.match(/^(\d{1,3})\s+(.*)$/);
-          const verseNumber = match ? match[1] : startVerse + idx;
-          const text = match ? match[2] : part;
-          return { verseNumber: verseNumber.toString(), text: cleanVerseText(text) };
+        return parts.slice(0, verseCount);
+      }
+
+      // If parsing failed, try simpler approach: match verse number at start
+      const simpleParts = [];
+      const lines = plainText.split(/\s*(\d{1,3})\s+/).filter(Boolean);
+
+      for (let i = 0; i < lines.length - 1; i += 2) {
+        if (/^\d{1,3}$/.test(lines[i]) && lines[i + 1]) {
+          simpleParts.push({
+            verseNumber: lines[i],
+            text: lines[i + 1].trim()
+          });
+        }
+      }
+
+      if (simpleParts.length >= verseCount) {
+        return simpleParts.slice(0, verseCount);
+      }
+    }
+
+    // Final fallback: try to extract any verses we can find
+    const fallbackParts = [];
+    const verseMatches = plainText.matchAll(/(\d{1,3})\s+([^0-9]+?)(?=\s*\d{1,3}\s+|$)/g);
+
+    for (const match of verseMatches) {
+      if (match[2] && match[2].trim()) {
+        fallbackParts.push({
+          verseNumber: match[1],
+          text: match[2].trim()
         });
       }
     }
 
-    return plainText
-      .split(/(?=\b\d{1,3}\b)/)
-      .map((part) => part.trim())
-      .filter(part => /^\d{1,3}\b/.test(part)) // Only keep parts that start with verse numbers
-      .map((part) => {
-        const match = part.match(/^(\d{1,3})\s+(.*)$/);
-        if (!match) return null;
-        return { verseNumber: match[1], text: cleanVerseText(match[2]) };
-      })
-      .filter(Boolean);
+    return fallbackParts.length > 0 ? fallbackParts : [];
   };
 
   const handleSearch = async () => {
@@ -2321,7 +2365,15 @@ function App() {
     setStudyPassages([]);
     setMainPoints([]);
     setThoughts([]);
+    setStudyNotes([]);
+    setStudyHighlights([]);
+    setStudyAdditionalReferences([]);
+    setSelectedColor(PASTEL_COLORS[0].value);
+    setNoteText("");
     setCurrentStudy(null);
+    setSelectedVerse(null);
+    setViewingNotesForVerse(null);
+    setShowNoteForm(false);
   };
 
   const startJoinGroupStudy = () => {
@@ -2415,6 +2467,7 @@ function App() {
     setThoughts(study.thoughts || []);
     setStudyNotes(study.notes || []);
     setStudyHighlights(study.highlights || []);
+    setStudyAdditionalReferences(study.additionalReferences || []);
     setStudyView("viewGroup");
 
     // Set up real-time listener for this group study
@@ -2429,6 +2482,7 @@ function App() {
         setThoughts(updatedStudy.thoughts || []);
         setStudyNotes(updatedStudy.notes || []);
         setStudyHighlights(updatedStudy.highlights || []);
+        setStudyAdditionalReferences(updatedStudy.additionalReferences || []);
       }
     });
 
