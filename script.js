@@ -1538,14 +1538,15 @@ function App() {
 
       for (let i = 0; i < tokens.length; i++) {
         const token = tokens[i];
-        // Check if this token is a verse number (1-3 digits)
-        if (/^\d{1,3}$/.test(token) && i < tokens.length - 1) {
+        const tokenNum = parseInt(token);
+        // Check if this token is a verse number within our expected range
+        if (/^\d{1,3}$/.test(token) && tokenNum >= startVerse && tokenNum <= endVerse && i < tokens.length - 1) {
           // Save previous verse if exists
           if (currentVerse !== null && currentText.trim()) {
             parts.push({ verseNumber: currentVerse.toString(), text: currentText.trim() });
           }
           // Start new verse
-          currentVerse = parseInt(token);
+          currentVerse = tokenNum;
           currentText = "";
         } else {
           currentText += (currentText ? " " : "") + token;
@@ -1557,9 +1558,15 @@ function App() {
         parts.push({ verseNumber: currentVerse.toString(), text: currentText.trim() });
       }
 
+      // Filter to only include verses in the expected range and sort them
+      const validParts = parts.filter(p => {
+        const num = parseInt(p.verseNumber);
+        return num >= startVerse && num <= endVerse;
+      }).sort((a, b) => parseInt(a.verseNumber) - parseInt(b.verseNumber));
+
       // If we successfully parsed verses, return them
-      if (parts.length >= verseCount) {
-        return parts.slice(0, verseCount);
+      if (validParts.length >= verseCount) {
+        return validParts.slice(0, verseCount);
       }
 
       // If parsing failed, try simpler approach: match verse number at start
@@ -1567,7 +1574,8 @@ function App() {
       const lines = plainText.split(/\s*(\d{1,3})\s+/).filter(Boolean);
 
       for (let i = 0; i < lines.length - 1; i += 2) {
-        if (/^\d{1,3}$/.test(lines[i]) && lines[i + 1]) {
+        const verseNum = parseInt(lines[i]);
+        if (/^\d{1,3}$/.test(lines[i]) && verseNum >= startVerse && verseNum <= endVerse && lines[i + 1]) {
           simpleParts.push({
             verseNumber: lines[i],
             text: lines[i + 1].trim()
@@ -1576,24 +1584,38 @@ function App() {
       }
 
       if (simpleParts.length >= verseCount) {
-        return simpleParts.slice(0, verseCount);
+        return simpleParts.sort((a, b) => parseInt(a.verseNumber) - parseInt(b.verseNumber)).slice(0, verseCount);
+      }
+
+      // Last resort: try to find verses with expected numbers
+      const finalParts = [];
+      const verseMatches = plainText.matchAll(/(\d{1,3})\s+([^0-9]+?)(?=\s*\d{1,3}\s+|$)/g);
+
+      for (const match of verseMatches) {
+        const verseNum = parseInt(match[1]);
+        if (match[2] && match[2].trim() && verseNum >= startVerse && verseNum <= endVerse) {
+          finalParts.push({
+            verseNumber: match[1],
+            text: match[2].trim()
+          });
+        }
+      }
+
+      if (finalParts.length > 0) {
+        return finalParts.sort((a, b) => parseInt(a.verseNumber) - parseInt(b.verseNumber));
+      }
+
+      // Ultimate fallback: if we still can't parse, split text into chunks and assign verse numbers sequentially
+      const sentences = plainText.split(/[.!?]+/).filter(s => s.trim().length > 10);
+      if (sentences.length > 0) {
+        return sentences.slice(0, verseCount).map((sentence, index) => ({
+          verseNumber: (startVerse + index).toString(),
+          text: sentence.trim()
+        }));
       }
     }
 
-    // Final fallback: try to extract any verses we can find
-    const fallbackParts = [];
-    const verseMatches = plainText.matchAll(/(\d{1,3})\s+([^0-9]+?)(?=\s*\d{1,3}\s+|$)/g);
-
-    for (const match of verseMatches) {
-      if (match[2] && match[2].trim()) {
-        fallbackParts.push({
-          verseNumber: match[1],
-          text: match[2].trim()
-        });
-      }
-    }
-
-    return fallbackParts.length > 0 ? fallbackParts : [];
+    return [];
   };
 
   const handleSearch = async () => {
@@ -2293,7 +2315,7 @@ function App() {
     setCurrentStudy(study);
     setStudyTitle(study.title);
     setStudyReference(study.reference);
-    setStudyPassages(study.passages || []);
+    setStudyPassages((study.passages || []).filter(v => v && v.verseNumber && v.text));
     setStudyHighlights(study.highlights || []);
     setStudyNotes(study.notes || []);
     setStudyAdditionalReferences(study.additionalReferences || []);
