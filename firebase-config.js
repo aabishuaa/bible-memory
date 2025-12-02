@@ -367,8 +367,7 @@ const FirestoreService = {
 
             const newStudy = {
                 title: study.title,
-                reference: study.reference,
-                passages: study.passages || [],
+                passages: study.passages || [], // Now: [{reference, verses: [{verseNumber, text}]}]
                 highlights: study.highlights || [],
                 notes: study.notes || [],
                 additionalReferences: study.additionalReferences || [],
@@ -451,8 +450,7 @@ const FirestoreService = {
             const newGroupStudy = {
                 code: studyCode,
                 title: study.title,
-                reference: study.reference,
-                passages: study.passages || [],
+                passages: study.passages || [], // Array of {reference, verses: [{verseNumber, text}]}
                 additionalReferences: [], // Array of additional scripture references
                 leadId: this.currentUserId,
                 leadName: study.leadName || 'Unknown',
