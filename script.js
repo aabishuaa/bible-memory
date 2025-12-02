@@ -1518,8 +1518,41 @@ function App() {
       return verses;
     }
 
-    // Fallback: parse plain text
+    // Get plain text for fallback parsing
     const plainText = (doc.body.textContent || content).replace(/\s+/g, " ").trim();
+
+    // FIRST: Try parsing bracket notation like "1[1] text [2] text [3] text"
+    // This handles the compressed format where verses are in brackets
+    if (plainText.includes("[")) {
+      const bracketVerses = [];
+
+      // Remove any leading chapter number (e.g., "7[1]" -> "[1]")
+      // Match: optional digits followed by bracket notation
+      let cleanedText = plainText.replace(/^\d+\s*(?=\[)/, "");
+
+      // Split on bracket notation: [N] where N is 1-3 digits
+      // Pattern: [digit(s)] followed by text until next [digit(s)] or end
+      const bracketPattern = /\[(\d{1,3})\]\s*([^\[]*?)(?=\s*\[\d{1,3}\]|$)/g;
+      let match;
+
+      while ((match = bracketPattern.exec(cleanedText)) !== null) {
+        const verseNumber = match[1];
+        const verseText = cleanVerseText(match[2]);
+
+        if (verseNumber && verseText) {
+          bracketVerses.push({
+            verseNumber: verseNumber,
+            text: verseText
+          });
+        }
+      }
+
+      if (bracketVerses.length > 0) {
+        return bracketVerses;
+      }
+    }
+
+    // Fallback: parse plain text with standalone verse numbers
     const refMatch = reference?.match(/(\d+):(\d+)(?:-(\d+))?/);
 
     if (refMatch) {
