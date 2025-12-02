@@ -3211,7 +3211,7 @@ function App() {
                                 );
 
                                 if (parsedVerses.length > 0) {
-                                  return parsedVerses.filter(v => v && v.verseNumber && v.text).map((v) => (
+                                  return parsedVerses.filter(v => v && v.verseNumber && v.text).map((v, index) => (
                                     <div key={v.verseNumber} style={{ marginBottom: "10px" }}>
                                       <span className="verse-number" style={{
                                         fontWeight: "bold",
@@ -3220,7 +3220,7 @@ function App() {
                                         fontSize: "0.9em",
                                         verticalAlign: "super",
                                       }}>
-                                        {v.verseNumber}
+                                        {index + 1}
                                       </span>
                                       <span>{v.text}</span>
                                     </div>
@@ -4280,7 +4280,7 @@ function App() {
                       </h3>
 
                       <div className="study-passage">
-                        {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse) => {
+                        {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse, index) => {
                           const highlight = getVerseHighlight(verse.verseNumber);
                           const isSelected = selectedVerse === verse.verseNumber;
                           const isViewingNotes = viewingNotesForVerse === verse.verseNumber;
@@ -4308,7 +4308,7 @@ function App() {
                                 }}
                               >
                                 <span className="verse-number">
-                                  {verse.verseNumber}
+                                  {index + 1}
                                 </span>
                                 <span className="verse-content">
                                   {verse.text}
@@ -4359,7 +4359,7 @@ function App() {
                                 }}>
                                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                                     <h4 style={{ margin: 0, color: "#2c2416", fontSize: "0.95rem" }}>
-                                      <Icons.StickyNote style={{ width: "16px", height: "16px" }} /> Notes for Verse {verse.verseNumber}
+                                      <Icons.StickyNote style={{ width: "16px", height: "16px" }} /> Notes for Verse {index + 1}
                                     </h4>
                                     <div style={{ display: "flex", gap: "8px" }}>
                                       <button
@@ -5026,7 +5026,7 @@ function App() {
                     Scripture Passage
                   </h3>
                   <div className="study-passage-display">
-                    {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse) => {
+                    {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse, index) => {
                       const highlight = studyHighlights.find(h => h.verseNumber === verse.verseNumber);
                       const verseNotes = studyNotes.filter(n => n.verseNumber === verse.verseNumber);
                       const isViewingNotes = viewingNotesForVerse === verse.verseNumber;
@@ -5063,7 +5063,7 @@ function App() {
                                   color: "#8b6f47",
                                   marginBottom: "6px"
                                 }}>
-                                  {verse.verseNumber}
+                                  {index + 1}
                                   {verseNotes.length > 0 && (
                                     <span style={{
                                       marginLeft: "8px",
@@ -5144,7 +5144,7 @@ function App() {
                             }}>
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                                 <h4 style={{ margin: 0, color: "#2c2416", fontSize: "0.95rem" }}>
-                                  <Icons.StickyNote style={{ width: "16px", height: "16px" }} /> Notes for Verse {verse.verseNumber}
+                                  <Icons.StickyNote style={{ width: "16px", height: "16px" }} /> Notes for Verse {index + 1}
                                 </h4>
                                 <div style={{ display: "flex", gap: "8px" }}>
                                   <button
@@ -5726,7 +5726,7 @@ function App() {
                                   color: "#6b8e5f",
                                   marginRight: "8px"
                                 }}>
-                                  v{verse.verseNumber}:
+                                  v{idx + 1}:
                                 </span>
                                 {verse.text}
                               </div>
