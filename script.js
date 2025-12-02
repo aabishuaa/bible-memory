@@ -1334,9 +1334,9 @@ function App() {
   const [studyListView, setStudyListView] = useState("personal"); // personal or group (for list view toggle)
   const [studyTitle, setStudyTitle] = useState("");
   const [studyReference, setStudyReference] = useState("");
-  const [studyPassages, setStudyPassages] = useState([]);
-  const [studyHighlights, setStudyHighlights] = useState([]);
-  const [studyNotes, setStudyNotes] = useState([]);
+  const [studyPassages, setStudyPassages] = useState([]); // Now: [{reference, verses: [{verseNumber, text}]}]
+  const [studyHighlights, setStudyHighlights] = useState([]); // Now: [{passageReference, verseNumber, color}]
+  const [studyNotes, setStudyNotes] = useState([]); // Now: [{passageReference, verseNumber, ...}]
   const [studyAdditionalReferences, setStudyAdditionalReferences] = useState([]);
   const [selectedColor, setSelectedColor] = useState("#ffe4e1");
   const [noteText, setNoteText] = useState("");
@@ -1359,6 +1359,7 @@ function App() {
   const [additionalReferenceLabel, setAdditionalReferenceLabel] = useState("");
   const [loadingAdditionalReference, setLoadingAdditionalReference] = useState(false);
   const [collapsedReferences, setCollapsedReferences] = useState({});
+  const [collapsedPassages, setCollapsedPassages] = useState({}); // Track collapsed state for passages
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
@@ -2158,6 +2159,13 @@ function App() {
       return;
     }
 
+    // Check if this reference already exists
+    const existingPassage = studyPassages.find(p => p.reference === studyReference.trim());
+    if (existingPassage) {
+      setError("This passage reference has already been added");
+      return;
+    }
+
     setLoadingStudy(true);
     setError("");
 
@@ -2171,15 +2179,25 @@ function App() {
         verseData.reference
       );
 
+      let verses = [];
       if (parsedVerses.length > 0) {
-        setStudyPassages(parsedVerses);
+        verses = parsedVerses;
       } else {
         // Fallback: if parsing failed, use the whole text as a single verse
-        setStudyPassages([{
+        verses = [{
           verseNumber: "1",
           text: verseData.text,
-        }]);
+        }];
       }
+
+      // Add the new passage to the passages array
+      const newPassage = {
+        reference: studyReference.trim(),
+        verses: verses.filter(v => v && v.verseNumber && v.text)
+      };
+
+      setStudyPassages([...studyPassages, newPassage]);
+      setStudyReference(""); // Clear the input for the next passage
 
       SoundEffects.playSuccess();
     } catch (err) {
@@ -2190,12 +2208,45 @@ function App() {
     }
   };
 
-  const handleVerseClick = (verseNumber) => {
+  const removePassage = (passageReference) => {
+    // Remove the passage
+    setStudyPassages(studyPassages.filter(p => p.reference !== passageReference));
+
+    // Remove all highlights and notes for this passage
+    setStudyHighlights(studyHighlights.filter(h => h.passageReference !== passageReference));
+    setStudyNotes(studyNotes.filter(n => n.passageReference !== passageReference));
+
+    // Clear selection if it was in the removed passage
+    if (selectedVerse && selectedVerse.passageReference === passageReference) {
+      setSelectedVerse(null);
+    }
+    if (viewingNotesForVerse && viewingNotesForVerse.passageReference === passageReference) {
+      setViewingNotesForVerse(null);
+    }
+
+    SoundEffects.playClick();
+  };
+
+  // Helper function to check if two verse references match
+  const isSameVerse = (v1, v2) => {
+    if (!v1 || !v2) return false;
+    return v1.passageReference === v2.passageReference && v1.verseNumber === v2.verseNumber;
+  };
+
+  // Helper function to get highlight for a specific verse
+  const getVerseHighlight = (passageReference, verseNumber) => {
+    return studyHighlights.find(h =>
+      h.passageReference === passageReference && h.verseNumber === verseNumber
+    );
+  };
+
+  const handleVerseClick = (passageReference, verseNumber) => {
     // Toggle selection: if clicking the same verse, deselect it
-    if (selectedVerse === verseNumber) {
+    const verseRef = { passageReference, verseNumber };
+    if (isSameVerse(selectedVerse, verseRef)) {
       setSelectedVerse(null);
     } else {
-      setSelectedVerse(verseNumber);
+      setSelectedVerse(verseRef);
       setViewingNotesForVerse(null); // Close notes panel when selecting a verse
     }
   };
@@ -2204,18 +2255,21 @@ function App() {
     if (!selectedVerse) return;
 
     // Check if this verse already has a highlight
-    const existingHighlight = studyHighlights.find(h => h.verseNumber === selectedVerse);
+    const existingHighlight = getVerseHighlight(selectedVerse.passageReference, selectedVerse.verseNumber);
 
     if (existingHighlight) {
       // Update the color of existing highlight
       setStudyHighlights(studyHighlights.map(h =>
-        h.verseNumber === selectedVerse ? { ...h, color: selectedColor } : h
+        h.passageReference === selectedVerse.passageReference && h.verseNumber === selectedVerse.verseNumber
+          ? { ...h, color: selectedColor }
+          : h
       ));
     } else {
       // Create new highlight for the entire verse
       const newHighlight = {
         id: Date.now().toString(),
-        verseNumber: selectedVerse,
+        passageReference: selectedVerse.passageReference,
+        verseNumber: selectedVerse.verseNumber,
         color: selectedColor,
       };
       setStudyHighlights([...studyHighlights, newHighlight]);
@@ -2225,17 +2279,20 @@ function App() {
     SoundEffects.playClick();
   };
 
-  const removeHighlight = (verseNumber) => {
-    setStudyHighlights(studyHighlights.filter(h => h.verseNumber !== verseNumber));
+  const removeHighlight = (passageReference, verseNumber) => {
+    setStudyHighlights(studyHighlights.filter(h =>
+      !(h.passageReference === passageReference && h.verseNumber === verseNumber)
+    ));
     SoundEffects.playClick();
   };
 
-  const handleHighlightClick = (verseNumber) => {
+  const handleHighlightClick = (passageReference, verseNumber) => {
     // Toggle notes view for the clicked verse
-    if (viewingNotesForVerse === verseNumber) {
+    const verseRef = { passageReference, verseNumber };
+    if (isSameVerse(viewingNotesForVerse, verseRef)) {
       setViewingNotesForVerse(null);
     } else {
-      setViewingNotesForVerse(verseNumber);
+      setViewingNotesForVerse(verseRef);
       setSelectedVerse(null); // Deselect verse when viewing notes
     }
   };
@@ -2253,11 +2310,13 @@ function App() {
     }
 
     // If we're viewing notes for a specific verse, attach the note to that verse
-    const verseNumber = viewingNotesForVerse || selectedVerse;
+    const verseRef = viewingNotesForVerse || selectedVerse;
+    if (!verseRef) return;
 
     const newNote = {
       id: Date.now().toString(),
-      verseNumber: verseNumber, // Link note to specific verse
+      passageReference: verseRef.passageReference,
+      verseNumber: verseRef.verseNumber, // Link note to specific verse
       color: selectedColor,
       text: noteText.trim(),
       timestamp: new Date().toISOString(),
@@ -2282,20 +2341,22 @@ function App() {
     }
 
     if (studyPassages.length === 0) {
-      setError("Please fetch a scripture passage first");
+      setError("Please add at least one scripture passage");
       return;
     }
 
     try {
       const studyData = {
         title: studyTitle.trim(),
-        reference: studyReference,
-        passages: studyPassages.filter(v => v && v.verseNumber && v.text),
+        passages: studyPassages.map(passage => ({
+          reference: passage.reference,
+          verses: passage.verses.filter(v => v && v.verseNumber && v.text)
+        })),
         highlights: studyHighlights,
         notes: studyNotes,
         additionalReferences: studyAdditionalReferences.map(ref => ({
           ...ref,
-          passages: ref.passages.filter(v => v && v.verseNumber && v.text)
+          passages: ref.passages ? ref.passages.filter(v => v && v.verseNumber && v.text) : []
         })),
       };
 
@@ -2325,8 +2386,23 @@ function App() {
   const loadStudy = (study) => {
     setCurrentStudy(study);
     setStudyTitle(study.title);
-    setStudyReference(study.reference);
-    setStudyPassages(study.passages || []);
+    setStudyReference("");
+    // Handle both old and new data structures
+    if (study.passages && study.passages.length > 0) {
+      // Check if it's the new format (array of {reference, verses})
+      if (study.passages[0].verses) {
+        setStudyPassages(study.passages);
+      } else {
+        // Old format: single passage stored as flat array of verses
+        // Migrate to new format
+        setStudyPassages([{
+          reference: study.reference || "Unknown",
+          verses: study.passages
+        }]);
+      }
+    } else {
+      setStudyPassages([]);
+    }
     setStudyHighlights(study.highlights || []);
     setStudyNotes(study.notes || []);
     setStudyAdditionalReferences(study.additionalReferences || []);
@@ -2373,10 +2449,27 @@ function App() {
 
   const duplicateStudy = async (study) => {
     try {
+      // Handle both old and new data structures
+      let passages = [];
+      if (study.passages && study.passages.length > 0) {
+        if (study.passages[0].verses) {
+          // New format: [{reference, verses}]
+          passages = study.passages.map(p => ({
+            reference: p.reference,
+            verses: p.verses.filter(v => v && v.verseNumber && v.text)
+          }));
+        } else {
+          // Old format: single passage as flat array of verses
+          passages = [{
+            reference: study.reference || "Unknown",
+            verses: study.passages.filter(v => v && v.verseNumber && v.text)
+          }];
+        }
+      }
+
       const duplicatedStudy = {
         title: study.title + " (Copy)",
-        reference: study.reference,
-        passages: (study.passages || []).filter(v => v && v.verseNumber && v.text),
+        passages: passages,
         highlights: [],
         notes: [],
       };
@@ -2424,7 +2517,7 @@ function App() {
       return;
     }
     if (studyPassages.length === 0) {
-      setError("Please fetch a scripture passage");
+      setError("Please add at least one scripture passage");
       return;
     }
 
@@ -2432,8 +2525,10 @@ function App() {
       setLoadingStudy(true);
       const groupStudyData = {
         title: studyTitle,
-        reference: studyReference,
-        passages: studyPassages.filter(v => v && v.verseNumber && v.text),
+        passages: studyPassages.map(passage => ({
+          reference: passage.reference,
+          verses: passage.verses.filter(v => v && v.verseNumber && v.text)
+        })),
         mainPoints: mainPoints,
         leadName: user.displayName || user.email,
         leadPhoto: user.photoURL || null,
@@ -2497,8 +2592,24 @@ function App() {
   const loadGroupStudy = (study) => {
     setCurrentStudy(study);
     setStudyTitle(study.title);
-    setStudyReference(study.reference);
-    setStudyPassages((study.passages || []).filter(v => v && v.verseNumber && v.text));
+    setStudyReference("");
+
+    // Handle both old and new data structures
+    if (study.passages && study.passages.length > 0) {
+      if (study.passages[0].verses) {
+        // New format: [{reference, verses}]
+        setStudyPassages(study.passages);
+      } else {
+        // Old format: single passage as flat array of verses
+        setStudyPassages([{
+          reference: study.reference || "Unknown",
+          verses: study.passages.filter(v => v && v.verseNumber && v.text)
+        }]);
+      }
+    } else {
+      setStudyPassages([]);
+    }
+
     setMainPoints(study.mainPoints || []);
     setThoughts(study.thoughts || []);
     setStudyNotes(study.notes || []);
@@ -2514,6 +2625,19 @@ function App() {
     const unsubscribe = FirestoreService.onGroupStudyChange(study.id, (updatedStudy) => {
       if (updatedStudy) {
         setCurrentStudy(updatedStudy);
+
+        // Handle both old and new data structures for passages in real-time updates
+        if (updatedStudy.passages && updatedStudy.passages.length > 0) {
+          if (updatedStudy.passages[0].verses) {
+            setStudyPassages(updatedStudy.passages);
+          } else {
+            setStudyPassages([{
+              reference: updatedStudy.reference || "Unknown",
+              verses: updatedStudy.passages.filter(v => v && v.verseNumber && v.text)
+            }]);
+          }
+        }
+
         setMainPoints(updatedStudy.mainPoints || []);
         setThoughts(updatedStudy.thoughts || []);
         setStudyNotes(updatedStudy.notes || []);
@@ -3978,7 +4102,9 @@ function App() {
                         </div>
                         <div className="study-reference">
                           <Icons.Book />
-                          {study.reference}
+                          {study.passages && study.passages.length > 0
+                            ? study.passages.map(p => p.reference || p).join(", ")
+                            : study.reference || "No passages"}
                         </div>
                         <div className="study-stats">
                           <span className="study-stat">
@@ -4066,7 +4192,9 @@ function App() {
                             </div>
                             <div className="study-reference">
                               <Icons.Book />
-                              {study.reference}
+                              {study.passages && study.passages.length > 0
+                                ? study.passages.map(p => p.reference || p).join(", ")
+                                : study.reference || "No passages"}
                             </div>
                             <div style={{
                               display: "flex",
@@ -4186,7 +4314,7 @@ function App() {
                     style={{ marginBottom: "20px" }}
                   />
 
-                  <label className="study-label">Scripture Reference</label>
+                  <label className="study-label">Add Scripture Passages</label>
                   <div className="search-box" style={{ marginBottom: "25px" }}>
                     <input
                       type="text"
@@ -4210,7 +4338,7 @@ function App() {
                         </>
                       ) : (
                         <>
-                          <Icons.Search /> Fetch Passage
+                          <Icons.Plus /> Add Passage
                         </>
                       )}
                     </button>
@@ -4276,15 +4404,85 @@ function App() {
                         }}
                       >
                         <Icons.Book />
-                        {studyReference}
+                        Passages ({studyPassages.length})
                       </h3>
 
-                      <div className="study-passage">
-                        {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse, index) => {
-                          const highlight = getVerseHighlight(verse.verseNumber);
-                          const isSelected = selectedVerse === verse.verseNumber;
-                          const isViewingNotes = viewingNotesForVerse === verse.verseNumber;
-                          const verseNotes = studyNotes.filter(n => n.verseNumber === verse.verseNumber);
+                      {studyPassages.map((passage, passageIndex) => {
+                        const isCollapsed = collapsedPassages[passage.reference];
+                        const passageHighlights = studyHighlights.filter(h => h.passageReference === passage.reference);
+                        const passageNotes = studyNotes.filter(n => n.passageReference === passage.reference);
+
+                        return (
+                          <div key={passage.reference} style={{ marginBottom: "20px" }}>
+                            {/* Collapsible passage header */}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "12px",
+                                backgroundColor: "#6b8e5f",
+                                color: "white",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                marginBottom: isCollapsed ? "0" : "10px",
+                              }}
+                              onClick={() => {
+                                setCollapsedPassages({
+                                  ...collapsedPassages,
+                                  [passage.reference]: !isCollapsed
+                                });
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+                                {isCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}
+                                <span style={{ fontWeight: "600", fontSize: "1rem" }}>
+                                  {passage.reference}
+                                </span>
+                                <span style={{ fontSize: "0.85rem", opacity: 0.9 }}>
+                                  ({passage.verses.length} verse{passage.verses.length !== 1 ? "s" : ""})
+                                </span>
+                                {passageHighlights.length > 0 && (
+                                  <span style={{ fontSize: "0.85rem", opacity: 0.9 }}>
+                                    • {passageHighlights.length} highlight{passageHighlights.length !== 1 ? "s" : ""}
+                                  </span>
+                                )}
+                                {passageNotes.length > 0 && (
+                                  <span style={{ fontSize: "0.85rem", opacity: 0.9 }}>
+                                    • {passageNotes.length} note{passageNotes.length !== 1 ? "s" : ""}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                className="icon-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removePassage(passage.reference);
+                                }}
+                                title="Remove passage"
+                                style={{
+                                  background: "rgba(255,255,255,0.2)",
+                                  color: "white",
+                                  padding: "6px",
+                                }}
+                              >
+                                <Icons.Trash style={{ width: "16px", height: "16px" }} />
+                              </button>
+                            </div>
+
+                            {/* Collapsible passage content */}
+                            {!isCollapsed && (
+                              <div className="study-passage" style={{
+                                border: "2px solid #6b8e5f",
+                                borderTop: "none",
+                                borderRadius: "0 0 6px 6px",
+                                padding: "15px"
+                              }}>
+                                {passage.verses.map((verse, index) => {
+                                  const highlight = getVerseHighlight(passage.reference, verse.verseNumber);
+                                  const isSelected = isSameVerse(selectedVerse, { passageReference: passage.reference, verseNumber: verse.verseNumber });
+                                  const isViewingNotes = isSameVerse(viewingNotesForVerse, { passageReference: passage.reference, verseNumber: verse.verseNumber });
+                                  const verseNotes = studyNotes.filter(n => n.passageReference === passage.reference && n.verseNumber === verse.verseNumber);
 
                           return (
                             <div key={verse.verseNumber} style={{ marginBottom: "10px" }}>
@@ -4301,9 +4499,9 @@ function App() {
                                 }}
                                 onClick={() => {
                                   if (highlight) {
-                                    handleHighlightClick(verse.verseNumber);
+                                    handleHighlightClick(passage.reference, verse.verseNumber);
                                   } else {
-                                    handleVerseClick(verse.verseNumber);
+                                    handleVerseClick(passage.reference, verse.verseNumber);
                                   }
                                 }}
                               >
@@ -4338,7 +4536,7 @@ function App() {
                                   {highlight && (
                                     <button
                                       className="btn btn-secondary btn-sm"
-                                      onClick={() => removeHighlight(verse.verseNumber)}
+                                      onClick={() => removeHighlight(passage.reference, verse.verseNumber)}
                                       style={{ fontSize: "0.85rem", padding: "6px 12px" }}
                                     >
                                       <Icons.X style={{ width: "14px", height: "14px" }} /> Remove Highlight
@@ -4373,7 +4571,7 @@ function App() {
                                       </button>
                                       <button
                                         className="btn btn-secondary btn-sm"
-                                        onClick={() => removeHighlight(verse.verseNumber)}
+                                        onClick={() => removeHighlight(passage.reference, verse.verseNumber)}
                                         style={{ fontSize: "0.8rem", padding: "4px 8px" }}
                                       >
                                         <Icons.Trash style={{ width: "12px", height: "12px" }} /> Remove Highlight
@@ -4464,10 +4662,14 @@ function App() {
                                   )}
                                 </div>
                               )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                                  </div>
+                                );
+                              })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {studyNotes.length > 0 && (
@@ -4476,43 +4678,65 @@ function App() {
                           <Icons.StickyNote /> All Notes Summary
                         </h3>
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                          {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse) => {
-                            const verseNotes = studyNotes.filter(n => n.verseNumber === verse.verseNumber);
-                            if (verseNotes.length === 0) return null;
+                          {studyPassages.map((passage) => {
+                            const passageNotes = studyNotes.filter(n => n.passageReference === passage.reference);
+                            if (passageNotes.length === 0) return null;
 
                             return (
-                              <div
-                                key={verse.verseNumber}
-                                style={{
-                                  padding: "12px",
-                                  backgroundColor: "#f9f6f1",
-                                  borderRadius: "6px",
-                                  border: "1px solid #d4c5a9"
-                                }}
-                              >
+                              <div key={passage.reference} style={{ marginBottom: "20px" }}>
                                 <div style={{
-                                  fontWeight: "600",
+                                  fontWeight: "700",
                                   color: "#2c2416",
-                                  marginBottom: "8px",
-                                  fontSize: "0.95rem"
+                                  marginBottom: "12px",
+                                  fontSize: "1rem",
+                                  padding: "8px",
+                                  backgroundColor: "#e8f5e9",
+                                  borderRadius: "4px"
                                 }}>
-                                  Verse {verse.verseNumber} ({verseNotes.length} note{verseNotes.length > 1 ? "s" : ""})
+                                  {passage.reference} ({passageNotes.length} note{passageNotes.length !== 1 ? "s" : ""})
                                 </div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                                  {verseNotes.map((note) => (
+                                {passage.verses.map((verse, verseIndex) => {
+                                  const verseNotes = passageNotes.filter(n => n.verseNumber === verse.verseNumber);
+                                  if (verseNotes.length === 0) return null;
+
+                                  return (
                                     <div
-                                      key={note.id}
+                                      key={verse.verseNumber}
                                       style={{
-                                        padding: "8px",
-                                        backgroundColor: note.color,
-                                        borderRadius: "4px",
-                                        fontSize: "0.9rem"
+                                        padding: "12px",
+                                        backgroundColor: "#f9f6f1",
+                                        borderRadius: "6px",
+                                        border: "1px solid #d4c5a9",
+                                        marginBottom: "8px",
+                                        marginLeft: "15px"
                                       }}
                                     >
-                                      {note.text}
+                                      <div style={{
+                                        fontWeight: "600",
+                                        color: "#2c2416",
+                                        marginBottom: "8px",
+                                        fontSize: "0.9rem"
+                                      }}>
+                                        Verse {verseIndex + 1} ({verseNotes.length} note{verseNotes.length > 1 ? "s" : ""})
+                                      </div>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                        {verseNotes.map((note) => (
+                                          <div
+                                            key={note.id}
+                                            style={{
+                                              padding: "8px",
+                                              backgroundColor: note.color,
+                                              borderRadius: "4px",
+                                              fontSize: "0.9rem"
+                                            }}
+                                          >
+                                            {note.text}
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
-                                  ))}
-                                </div>
+                                  );
+                                })}
                               </div>
                             );
                           })}
