@@ -4981,37 +4981,97 @@ function App() {
                 {studyPassages.length > 0 && (
                   <div style={{ marginTop: "30px" }}>
                     <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
-                      Scripture Passage
+                      Scripture Passage{studyPassages.length > 1 ? "s" : ""}
                     </h3>
                     <div className="study-passage-display">
-                      {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse) => (
-                        <div
-                          key={verse.verseNumber}
-                          style={{
-                            padding: "12px",
-                            marginBottom: "8px",
-                            backgroundColor: "#f9f6f1",
-                            borderRadius: "6px",
-                            border: "1px solid #e8dcc8"
-                          }}
-                        >
-                          <div style={{
-                            fontSize: "0.85rem",
-                            fontWeight: "600",
-                            color: "#6b8e5f",
-                            marginBottom: "6px"
-                          }}>
-                            Verse {verse.verseNumber}
+                      {studyPassages.map((passage, passageIndex) => {
+                        const isCollapsed = collapsedPassages[passage.reference];
+
+                        return (
+                          <div key={passage.reference || passageIndex} style={{ marginBottom: "20px" }}>
+                            {/* Collapsible passage header */}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "12px",
+                                backgroundColor: "#6b8e5f",
+                                color: "white",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                marginBottom: isCollapsed ? "0" : "10px",
+                              }}
+                              onClick={() => {
+                                setCollapsedPassages({
+                                  ...collapsedPassages,
+                                  [passage.reference]: !isCollapsed
+                                });
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+                                {isCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}
+                                <span style={{ fontWeight: "600", fontSize: "1rem" }}>
+                                  {passage.reference}
+                                </span>
+                                <span style={{ fontSize: "0.85rem", opacity: 0.9 }}>
+                                  ({passage.verses.length} verse{passage.verses.length !== 1 ? "s" : ""})
+                                </span>
+                              </div>
+                              <button
+                                className="icon-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setStudyPassages(studyPassages.filter(p => p.reference !== passage.reference));
+                                }}
+                                title="Remove passage"
+                                style={{ color: "white" }}
+                              >
+                                <Icons.Trash />
+                              </button>
+                            </div>
+
+                            {/* Collapsible passage content */}
+                            {!isCollapsed && (
+                              <div style={{
+                                border: "2px solid #6b8e5f",
+                                borderTop: "none",
+                                borderRadius: "0 0 6px 6px",
+                                padding: "15px"
+                              }}>
+                                {passage.verses && passage.verses.filter(v => v && v.verseNumber && v.text).map((verse, verseIndex) => (
+                                  <div
+                                    key={verse.verseNumber}
+                                    style={{
+                                      padding: "12px",
+                                      marginBottom: "8px",
+                                      backgroundColor: "#f9f6f1",
+                                      borderRadius: "6px",
+                                      border: "1px solid #e8dcc8"
+                                    }}
+                                  >
+                                    <div style={{
+                                      fontSize: "0.85rem",
+                                      fontWeight: "600",
+                                      color: "#6b8e5f",
+                                      marginBottom: "6px"
+                                    }}>
+                                      Verse {verse.verseNumber}
+                                    </div>
+                                    <div style={{
+                                      fontSize: "1rem",
+                                      lineHeight: "1.6",
+                                      color: "#2c2416"
+                                    }}>
+                                      {verse.text}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          <div style={{
-                            fontSize: "1rem",
-                            lineHeight: "1.6",
-                            color: "#2c2416"
-                          }}>
-                            {verse.text}
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
