@@ -459,8 +459,8 @@ const FirestoreService = {
                 participants: [], // Array of {uid, displayName, photoURL}
                 mainPoints: study.mainPoints || [],
                 thoughts: [], // Array of {id, userId, userName, userPhoto, text, timestamp}
-                notes: [], // Array of {id, userId, userName, userPhoto, verseNumber, color, text, timestamp}
-                highlights: study.highlights || [], // Array of {verseNumber, color}
+                notes: [], // Array of {id, userId, userName, userPhoto, passageReference, verseNumber, color, text, timestamp}
+                highlights: study.highlights || [], // Array of {passageReference, verseNumber, color}
                 dateCreated: firebase.firestore.FieldValue.serverTimestamp(),
                 dateModified: firebase.firestore.FieldValue.serverTimestamp()
             };
@@ -836,6 +836,7 @@ const FirestoreService = {
                 userId: this.currentUserId,
                 userName: userData.displayName || 'Unknown',
                 userPhoto: userData.photoURL || null,
+                passageReference: note.passageReference,
                 verseNumber: note.verseNumber,
                 color: note.color,
                 text: note.text,
@@ -936,7 +937,7 @@ const FirestoreService = {
     },
 
     // Add a highlight to a group study
-    async addHighlightToGroupStudy(studyId, verseNumber, color) {
+    async addHighlightToGroupStudy(studyId, passageReference, verseNumber, color) {
         try {
             const studyRef = db.collection('groupStudies').doc(studyId);
             const studyDoc = await studyRef.get();
@@ -949,10 +950,12 @@ const FirestoreService = {
             const highlights = studyData.highlights || [];
 
             // Remove existing highlight for this verse if any
-            const updatedHighlights = highlights.filter(h => h.verseNumber !== verseNumber);
+            const updatedHighlights = highlights.filter(h =>
+                !(h.passageReference === passageReference && h.verseNumber === verseNumber)
+            );
 
             // Add new highlight
-            updatedHighlights.push({ verseNumber, color });
+            updatedHighlights.push({ passageReference, verseNumber, color });
 
             await studyRef.update({
                 highlights: updatedHighlights,
@@ -967,7 +970,7 @@ const FirestoreService = {
     },
 
     // Remove a highlight from a group study
-    async removeHighlightFromGroupStudy(studyId, verseNumber) {
+    async removeHighlightFromGroupStudy(studyId, passageReference, verseNumber) {
         try {
             const studyRef = db.collection('groupStudies').doc(studyId);
             const studyDoc = await studyRef.get();
@@ -979,7 +982,9 @@ const FirestoreService = {
             const studyData = studyDoc.data();
             const highlights = studyData.highlights || [];
 
-            const updatedHighlights = highlights.filter(h => h.verseNumber !== verseNumber);
+            const updatedHighlights = highlights.filter(h =>
+                !(h.passageReference === passageReference && h.verseNumber === verseNumber)
+            );
 
             await studyRef.update({
                 highlights: updatedHighlights,

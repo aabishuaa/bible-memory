@@ -2817,7 +2817,12 @@ function App() {
       return;
     }
 
-    const verseNumber = viewingNotesForVerse || selectedVerse;
+    const verseRef = viewingNotesForVerse || selectedVerse;
+
+    if (!verseRef || !verseRef.passageReference || !verseRef.verseNumber) {
+      setError("Invalid verse reference");
+      return;
+    }
 
     try {
       const userData = {
@@ -2826,7 +2831,8 @@ function App() {
       };
 
       const note = {
-        verseNumber: verseNumber,
+        passageReference: verseRef.passageReference,
+        verseNumber: verseRef.verseNumber,
         color: selectedColor,
         text: noteText.trim(),
       };
@@ -2868,9 +2874,9 @@ function App() {
   };
 
   // Add highlight to group study
-  const addHighlightToGroupStudy = async (verseNumber, color) => {
+  const addHighlightToGroupStudy = async (passageReference, verseNumber, color) => {
     try {
-      await FirestoreService.addHighlightToGroupStudy(currentStudy.id, verseNumber, color);
+      await FirestoreService.addHighlightToGroupStudy(currentStudy.id, passageReference, verseNumber, color);
       SoundEffects.playClick();
     } catch (err) {
       console.error("Error adding highlight:", err);
@@ -2880,9 +2886,9 @@ function App() {
   };
 
   // Remove highlight from group study
-  const removeHighlightFromGroupStudy = async (verseNumber) => {
+  const removeHighlightFromGroupStudy = async (passageReference, verseNumber) => {
     try {
-      await FirestoreService.removeHighlightFromGroupStudy(currentStudy.id, verseNumber);
+      await FirestoreService.removeHighlightFromGroupStudy(currentStudy.id, passageReference, verseNumber);
       SoundEffects.playClick();
     } catch (err) {
       console.error("Error removing highlight:", err);
@@ -5243,113 +5249,138 @@ function App() {
                 {/* Scripture Passage */}
                 <div style={{ marginBottom: "30px" }}>
                   <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
-                    Scripture Passage
+                    Scripture Passage{studyPassages.length > 1 ? "s" : ""}
                   </h3>
                   <div className="study-passage-display">
-                    {studyPassages.filter(v => v && v.verseNumber && v.text).map((verse, index) => {
-                      const highlight = studyHighlights.find(h => h.verseNumber === verse.verseNumber);
-                      const verseNotes = studyNotes.filter(n => n.verseNumber === verse.verseNumber);
-                      const isViewingNotes = viewingNotesForVerse === verse.verseNumber;
+                    {studyPassages.map((passage, passageIndex) => (
+                      <div key={passage.reference || passageIndex} style={{ marginBottom: "20px" }}>
+                        {studyPassages.length > 1 && (
+                          <div style={{
+                            fontSize: "0.9rem",
+                            fontWeight: "700",
+                            color: "#8b6f47",
+                            marginBottom: "10px",
+                            padding: "8px 12px",
+                            background: "#f9f6f1",
+                            borderRadius: "6px",
+                            border: "1px solid #e8dcc8"
+                          }}>
+                            {passage.reference}
+                          </div>
+                        )}
+                        {passage.verses && passage.verses.filter(v => v && v.verseNumber && v.text).map((verse, verseIndex) => {
+                          const highlight = studyHighlights.find(h =>
+                            h.passageReference === passage.reference && h.verseNumber === verse.verseNumber
+                          );
+                          const verseNotes = studyNotes.filter(n =>
+                            n.passageReference === passage.reference && n.verseNumber === verse.verseNumber
+                          );
+                          const isSelected = selectedVerse &&
+                            selectedVerse.passageReference === passage.reference &&
+                            selectedVerse.verseNumber === verse.verseNumber;
+                          const isViewingNotes = viewingNotesForVerse &&
+                            viewingNotesForVerse.passageReference === passage.reference &&
+                            viewingNotesForVerse.verseNumber === verse.verseNumber;
 
-                      return (
-                        <div key={verse.verseNumber}>
-                          <div
-                            style={{
-                              padding: "12px",
-                              marginBottom: isViewingNotes ? 0 : "8px",
-                              backgroundColor: highlight ? highlight.color : "#f9f6f1",
-                              borderRadius: isViewingNotes ? "6px 6px 0 0" : "6px",
-                              border: "1px solid #e8dcc8",
-                              cursor: selectedVerse === verse.verseNumber ? "default" : "pointer",
-                              transition: "all 0.2s ease",
-                              borderBottom: isViewingNotes ? "none" : "1px solid #e8dcc8"
-                            }}
-                            onClick={() => {
-                              if (selectedVerse !== verse.verseNumber) {
-                                setSelectedVerse(verse.verseNumber);
-                                setViewingNotesForVerse(null);
-                              }
-                            }}
-                          >
-                            <div style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "flex-start"
-                            }}>
-                              <div style={{ flex: 1 }}>
+                          return (
+                            <div key={verse.verseNumber}>
+                              <div
+                                style={{
+                                  padding: "12px",
+                                  marginBottom: isViewingNotes ? 0 : "8px",
+                                  backgroundColor: highlight ? highlight.color : "#f9f6f1",
+                                  borderRadius: isViewingNotes ? "6px 6px 0 0" : "6px",
+                                  border: "1px solid #e8dcc8",
+                                  cursor: isSelected ? "default" : "pointer",
+                                  transition: "all 0.2s ease",
+                                  borderBottom: isViewingNotes ? "none" : "1px solid #e8dcc8"
+                                }}
+                                onClick={() => {
+                                  if (!isSelected) {
+                                    setSelectedVerse({ passageReference: passage.reference, verseNumber: verse.verseNumber });
+                                    setViewingNotesForVerse(null);
+                                  }
+                                }}
+                              >
                                 <div style={{
-                                  fontSize: "0.9rem",
-                                  fontWeight: "700",
-                                  color: "#8b6f47",
-                                  marginBottom: "6px"
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "flex-start"
                                 }}>
-                                  {index + 1}
-                                  {verseNotes.length > 0 && (
-                                    <span style={{
-                                      marginLeft: "8px",
-                                      fontSize: "0.75rem",
-                                      padding: "2px 6px",
-                                      background: "#d4a574",
-                                      color: "white",
-                                      borderRadius: "10px"
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{
+                                      fontSize: "0.9rem",
+                                      fontWeight: "700",
+                                      color: "#8b6f47",
+                                      marginBottom: "6px"
                                     }}>
-                                      {verseNotes.length} note{verseNotes.length > 1 ? "s" : ""}
-                                    </span>
-                                  )}
+                                      {verse.verseNumber}
+                                      {verseNotes.length > 0 && (
+                                        <span style={{
+                                          marginLeft: "8px",
+                                          fontSize: "0.75rem",
+                                          padding: "2px 6px",
+                                          background: "#d4a574",
+                                          color: "white",
+                                          borderRadius: "10px"
+                                        }}>
+                                          {verseNotes.length} note{verseNotes.length > 1 ? "s" : ""}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div style={{
+                                      fontSize: "1rem",
+                                      lineHeight: "1.6",
+                                      color: "#2c2416"
+                                    }}>
+                                      {verse.text}
+                                    </div>
+                                  </div>
                                 </div>
-                                <div style={{
-                                  fontSize: "1rem",
-                                  lineHeight: "1.6",
-                                  color: "#2c2416"
-                                }}>
-                                  {verse.text}
-                                </div>
-                              </div>
-                            </div>
 
-                            {selectedVerse === verse.verseNumber && (
-                              <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                                {PASTEL_COLORS.map((colorOption) => (
-                                  <button
-                                    key={colorOption.value}
-                                    className="icon-btn"
-                                    onClick={() => {
-                                      setSelectedColor(colorOption.value);
-                                      addHighlightToGroupStudy(verse.verseNumber, colorOption.value);
-                                    }}
-                                    style={{
-                                      backgroundColor: colorOption.value,
-                                      width: "24px",
-                                      height: "24px",
-                                      borderRadius: "50%",
-                                      border: "2px solid #d4c5a9",
-                                      padding: 0
-                                    }}
-                                    title={`Highlight with ${colorOption.name}`}
-                                  />
-                                ))}
-                                <button
-                                  className="btn btn-secondary btn-sm"
-                                  onClick={() => {
-                                    setViewingNotesForVerse(verse.verseNumber);
-                                    setSelectedVerse(null);
-                                  }}
-                                  style={{ fontSize: "0.75rem", padding: "4px 8px" }}
-                                >
-                                  <Icons.StickyNote style={{ width: "12px", height: "12px" }} /> View/Add Notes
-                                </button>
-                                {highlight && (
-                                  <button
-                                    className="btn btn-secondary btn-sm"
-                                    onClick={() => removeHighlightFromGroupStudy(verse.verseNumber)}
-                                    style={{ fontSize: "0.75rem", padding: "4px 8px" }}
-                                  >
-                                    <Icons.Trash style={{ width: "12px", height: "12px" }} /> Remove Highlight
-                                  </button>
+                                {isSelected && (
+                                  <div style={{ marginTop: "12px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                                    {PASTEL_COLORS.map((colorOption) => (
+                                      <button
+                                        key={colorOption.value}
+                                        className="icon-btn"
+                                        onClick={() => {
+                                          setSelectedColor(colorOption.value);
+                                          addHighlightToGroupStudy(passage.reference, verse.verseNumber, colorOption.value);
+                                        }}
+                                        style={{
+                                          backgroundColor: colorOption.value,
+                                          width: "24px",
+                                          height: "24px",
+                                          borderRadius: "50%",
+                                          border: "2px solid #d4c5a9",
+                                          padding: 0
+                                        }}
+                                        title={`Highlight with ${colorOption.name}`}
+                                      />
+                                    ))}
+                                    <button
+                                      className="btn btn-secondary btn-sm"
+                                      onClick={() => {
+                                        setViewingNotesForVerse({ passageReference: passage.reference, verseNumber: verse.verseNumber });
+                                        setSelectedVerse(null);
+                                      }}
+                                      style={{ fontSize: "0.75rem", padding: "4px 8px" }}
+                                    >
+                                      <Icons.StickyNote style={{ width: "12px", height: "12px" }} /> View/Add Notes
+                                    </button>
+                                    {highlight && (
+                                      <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => removeHighlightFromGroupStudy(passage.reference, verse.verseNumber)}
+                                        style={{ fontSize: "0.75rem", padding: "4px 8px" }}
+                                      >
+                                        <Icons.Trash style={{ width: "12px", height: "12px" }} /> Remove Highlight
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            )}
-                          </div>
 
                           {/* Notes panel for highlighted verses */}
                           {isViewingNotes && (
@@ -5364,7 +5395,7 @@ function App() {
                             }}>
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                                 <h4 style={{ margin: 0, color: "#2c2416", fontSize: "0.95rem" }}>
-                                  <Icons.StickyNote style={{ width: "16px", height: "16px" }} /> Notes for Verse {index + 1}
+                                  <Icons.StickyNote style={{ width: "16px", height: "16px" }} /> Notes for Verse {verse.verseNumber}
                                 </h4>
                                 <div style={{ display: "flex", gap: "8px" }}>
                                   <button
@@ -5521,8 +5552,10 @@ function App() {
                             </div>
                           )}
                         </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                 </div>
 
