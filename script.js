@@ -2354,6 +2354,7 @@ function App() {
         })),
         highlights: studyHighlights,
         notes: studyNotes,
+        thoughts: thoughts,
         additionalReferences: studyAdditionalReferences.map(ref => ({
           ...ref,
           passages: ref.passages ? ref.passages.filter(v => v && v.verseNumber && v.text) : []
@@ -2406,8 +2407,11 @@ function App() {
     setStudyHighlights(study.highlights || []);
     setStudyNotes(study.notes || []);
     setStudyAdditionalReferences(study.additionalReferences || []);
+    setThoughts(study.thoughts || []);
     setSelectedColor(PASTEL_COLORS[0].value);
     setNoteText("");
+    setNewThought("");
+    setEditingThought(null);
     setSelectedVerse(null);
     setViewingNotesForVerse(null);
     setShowNoteForm(false);
@@ -2671,11 +2675,30 @@ function App() {
     if (!newThought.trim()) return;
 
     try {
-      const userData = {
-        displayName: user.displayName || user.email,
-        photoURL: user.photoURL || null,
-      };
-      await FirestoreService.addThoughtToGroupStudy(currentStudy.id, newThought, userData);
+      // Check if it's a group study or personal study
+      if (currentStudy.isGroupStudy) {
+        const userData = {
+          displayName: user.displayName || user.email,
+          photoURL: user.photoURL || null,
+        };
+        await FirestoreService.addThoughtToGroupStudy(currentStudy.id, newThought, userData);
+      } else {
+        // Personal study - add thought locally and save
+        const newThoughtObj = {
+          id: Date.now().toString() + '_' + user.uid,
+          userId: user.uid,
+          userName: user.displayName || user.email,
+          userPhoto: user.photoURL || null,
+          text: newThought,
+          timestamp: new Date().toISOString()
+        };
+        const updatedThoughts = [...thoughts, newThoughtObj];
+        setThoughts(updatedThoughts);
+        await FirestoreService.updateStudy(currentStudy.id, {
+          ...currentStudy,
+          thoughts: updatedThoughts
+        });
+      }
       setNewThought("");
       SoundEffects.playSuccess();
     } catch (err) {
@@ -2778,7 +2801,21 @@ function App() {
   // Edit thought (own thoughts only)
   const editThought = async (thoughtId, newText) => {
     try {
-      await FirestoreService.editThought(currentStudy.id, thoughtId, newText);
+      if (currentStudy.isGroupStudy) {
+        await FirestoreService.editThought(currentStudy.id, thoughtId, newText);
+      } else {
+        // Personal study - update thought locally and save
+        const updatedThoughts = thoughts.map(t =>
+          t.id === thoughtId
+            ? { ...t, text: newText, edited: true, editedAt: new Date().toISOString() }
+            : t
+        );
+        setThoughts(updatedThoughts);
+        await FirestoreService.updateStudy(currentStudy.id, {
+          ...currentStudy,
+          thoughts: updatedThoughts
+        });
+      }
       SoundEffects.playSuccess();
     } catch (err) {
       console.error("Error editing thought:", err);
@@ -2797,7 +2834,17 @@ function App() {
       isDangerous: true,
       onConfirm: async () => {
         try {
-          await FirestoreService.deleteThought(currentStudy.id, thoughtId);
+          if (currentStudy.isGroupStudy) {
+            await FirestoreService.deleteThought(currentStudy.id, thoughtId);
+          } else {
+            // Personal study - remove thought locally and save
+            const updatedThoughts = thoughts.filter(t => t.id !== thoughtId);
+            setThoughts(updatedThoughts);
+            await FirestoreService.updateStudy(currentStudy.id, {
+              ...currentStudy,
+              thoughts: updatedThoughts
+            });
+          }
           setConfirmModal({ ...confirmModal, isOpen: false });
           SoundEffects.playSuccess();
         } catch (err) {
@@ -4897,6 +4944,150 @@ function App() {
                         </div>
                       )}
                     </div>
+
+                    {/* Thoughts & Reflections */}
+                    <div style={{ marginTop: "30px" }}>
+                      <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
+                        <Icons.StickyNote /> Thoughts & Reflections
+                      </h3>
+
+                      <div style={{ marginBottom: "15px" }}>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <textarea
+                            className="input"
+                            placeholder="Share your thoughts and reflections..."
+                            value={newThought}
+                            onChange={(e) => setNewThought(e.target.value)}
+                            style={{ resize: "vertical", minHeight: "80px", flex: 1 }}
+                          />
+                          <button
+                            className="btn btn-success"
+                            onClick={addThought}
+                            disabled={!newThought.trim()}
+                            style={{ alignSelf: "flex-start" }}
+                          >
+                            <Icons.Plus /> Add
+                          </button>
+                        </div>
+                      </div>
+
+                      {thoughts.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                          {thoughts.map((thought) => (
+                            <div
+                              key={thought.id}
+                              style={{
+                                padding: "15px",
+                                background: "#f9f6f1",
+                                borderRadius: "8px",
+                                border: "2px solid #d4c5a9",
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                                <img
+                                  src={thought.userPhoto || "/default-avatar.png"}
+                                  alt={thought.userName}
+                                  style={{
+                                    width: "32px",
+                                    height: "32px",
+                                    borderRadius: "50%",
+                                    objectFit: "cover"
+                                  }}
+                                  onError={(e) => {
+                                    e.target.src = "/default-avatar.png";
+                                  }}
+                                />
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                                    <div>
+                                      <div style={{ fontWeight: "600", color: "#2c2416" }}>
+                                        {thought.userName}
+                                      </div>
+                                      <div style={{ fontSize: "0.75rem", color: "#8b7355" }}>
+                                        {new Date(thought.timestamp).toLocaleString()}
+                                        {thought.edited && <span style={{ marginLeft: "6px", fontStyle: "italic" }}>(edited)</span>}
+                                      </div>
+                                    </div>
+                                    {thought.userId === user.uid && editingThought?.id !== thought.id && (
+                                      <div style={{ display: "flex", gap: "4px" }}>
+                                        <button
+                                          className="icon-btn"
+                                          onClick={() => setEditingThought({ id: thought.id, text: thought.text })}
+                                          title="Edit thought"
+                                          style={{ fontSize: "0.8rem" }}
+                                        >
+                                          <Icons.Edit style={{ width: "14px", height: "14px" }} />
+                                        </button>
+                                        <button
+                                          className="icon-btn"
+                                          onClick={() => deleteThought(thought.id)}
+                                          title="Delete thought"
+                                          style={{ fontSize: "0.8rem" }}
+                                        >
+                                          <Icons.Trash style={{ width: "14px", height: "14px" }} />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {editingThought?.id === thought.id ? (
+                                    <div style={{ marginTop: "8px" }}>
+                                      <textarea
+                                        className="input"
+                                        value={editingThought.text}
+                                        onChange={(e) => setEditingThought({ ...editingThought, text: e.target.value })}
+                                        style={{ resize: "vertical", minHeight: "80px", marginBottom: "8px" }}
+                                      />
+                                      <div style={{ display: "flex", gap: "8px" }}>
+                                        <button
+                                          className="btn btn-success btn-sm"
+                                          onClick={() => {
+                                            editThought(thought.id, editingThought.text);
+                                            setEditingThought(null);
+                                          }}
+                                          disabled={!editingThought.text.trim()}
+                                          style={{ fontSize: "0.85rem", padding: "4px 8px" }}
+                                        >
+                                          Save
+                                        </button>
+                                        <button
+                                          className="btn btn-secondary btn-sm"
+                                          onClick={() => setEditingThought(null)}
+                                          style={{ fontSize: "0.85rem", padding: "4px 8px" }}
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div style={{
+                                      color: "#2c2416",
+                                      lineHeight: "1.6",
+                                      wordWrap: "break-word",
+                                      overflowWrap: "break-word",
+                                      wordBreak: "break-word"
+                                    }}>
+                                      {thought.text}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: "20px",
+                          textAlign: "center",
+                          color: "#5a4d37",
+                          background: "#f9f6f1",
+                          borderRadius: "6px",
+                          fontStyle: "italic"
+                        }}>
+                          No thoughts yet. Add your reflections and insights about this study.
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -5774,7 +5965,13 @@ function App() {
                                   </div>
                                 </div>
                               ) : (
-                                <div style={{ color: "#2c2416", lineHeight: "1.5" }}>
+                                <div style={{
+                                  color: "#2c2416",
+                                  lineHeight: "1.5",
+                                  wordWrap: "break-word",
+                                  overflowWrap: "break-word",
+                                  wordBreak: "break-word"
+                                }}>
                                   {point}
                                 </div>
                               )}
@@ -5944,7 +6141,10 @@ function App() {
                           ) : (
                             <div style={{
                               color: "#2c2416",
-                              lineHeight: "1.6"
+                              lineHeight: "1.6",
+                              wordWrap: "break-word",
+                              overflowWrap: "break-word",
+                              wordBreak: "break-word"
                             }}>
                               {thought.text}
                             </div>
