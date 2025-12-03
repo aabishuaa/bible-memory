@@ -1002,6 +1002,11 @@ const FirestoreService = {
     async addAdditionalReference(studyId, reference, passages, label = "") {
         try {
             const studyRef = db.collection('groupStudies').doc(studyId);
+            const studyDoc = await studyRef.get();
+
+            if (!studyDoc.exists) {
+                throw new Error('Study not found');
+            }
 
             const newReference = {
                 id: Date.now().toString(),
