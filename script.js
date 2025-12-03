@@ -3027,10 +3027,6 @@ function App() {
     // Could show a toast notification here
   };
 
-  const getVerseHighlight = (verseNumber) => {
-    return studyHighlights.find(h => h.verseNumber === verseNumber);
-  };
-
   const stats = {
     total: verses.length,
     memorized: verses.filter((v) => v.memorized).length,
