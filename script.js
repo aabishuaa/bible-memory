@@ -5312,23 +5312,63 @@ function App() {
                     Scripture Passage{studyPassages.length > 1 ? "s" : ""}
                   </h3>
                   <div className="study-passage-display">
-                    {studyPassages.map((passage, passageIndex) => (
-                      <div key={passage.reference || passageIndex} style={{ marginBottom: "20px" }}>
-                        {studyPassages.length > 1 && (
-                          <div style={{
-                            fontSize: "0.9rem",
-                            fontWeight: "700",
-                            color: "#8b6f47",
-                            marginBottom: "10px",
-                            padding: "8px 12px",
-                            background: "#f9f6f1",
-                            borderRadius: "6px",
-                            border: "1px solid #e8dcc8"
-                          }}>
-                            {passage.reference}
+                    {studyPassages.map((passage, passageIndex) => {
+                      const isCollapsed = collapsedPassages[passage.reference];
+                      const passageHighlights = studyHighlights.filter(h => h.passageReference === passage.reference);
+                      const passageNotes = studyNotes.filter(n => n.passageReference === passage.reference);
+
+                      return (
+                        <div key={passage.reference || passageIndex} style={{ marginBottom: "20px" }}>
+                          {/* Collapsible passage header */}
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "12px",
+                              backgroundColor: "#6b8e5f",
+                              color: "white",
+                              borderRadius: "6px",
+                              cursor: "pointer",
+                              marginBottom: isCollapsed ? "0" : "10px",
+                            }}
+                            onClick={() => {
+                              setCollapsedPassages({
+                                ...collapsedPassages,
+                                [passage.reference]: !isCollapsed
+                              });
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1 }}>
+                              {isCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}
+                              <span style={{ fontWeight: "600", fontSize: "1rem" }}>
+                                {passage.reference}
+                              </span>
+                              <span style={{ fontSize: "0.85rem", opacity: 0.9 }}>
+                                ({passage.verses?.length || 0} verse{passage.verses?.length !== 1 ? "s" : ""})
+                              </span>
+                              {passageHighlights.length > 0 && (
+                                <span style={{ fontSize: "0.85rem", opacity: 0.9 }}>
+                                  • {passageHighlights.length} highlight{passageHighlights.length !== 1 ? "s" : ""}
+                                </span>
+                              )}
+                              {passageNotes.length > 0 && (
+                                <span style={{ fontSize: "0.85rem", opacity: 0.9 }}>
+                                  • {passageNotes.length} note{passageNotes.length !== 1 ? "s" : ""}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        )}
-                        {passage.verses && passage.verses.filter(v => v && v.verseNumber && v.text).map((verse, verseIndex) => {
+
+                          {/* Collapsible passage content */}
+                          {!isCollapsed && (
+                            <div style={{
+                              border: "2px solid #6b8e5f",
+                              borderTop: "none",
+                              borderRadius: "0 0 6px 6px",
+                              padding: "15px"
+                            }}>
+                              {passage.verses && passage.verses.filter(v => v && v.verseNumber && v.text).map((verse, verseIndex) => {
                           const highlight = studyHighlights.find(h =>
                             h.passageReference === passage.reference && h.verseNumber === verse.verseNumber
                           );
@@ -5611,11 +5651,14 @@ function App() {
                               )}
                             </div>
                           )}
+                              </div>
+                            );
+                          })}
+                            </div>
+                          )}
                         </div>
-                          );
-                        })}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
