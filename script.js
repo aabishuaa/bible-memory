@@ -689,6 +689,44 @@ const Icons = {
       <polyline points="6 9 12 15 18 9"></polyline>
     </svg>
   ),
+  Trophy: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+      <path d="M4 22h16"></path>
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+    </svg>
+  ),
+  Zap: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+    </svg>
+  ),
+  Clock: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10"></circle>
+      <polyline points="12 6 12 12 16 14"></polyline>
+    </svg>
+  ),
+  Star: ({ filled }) => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+    </svg>
+  ),
+  Crown: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"></path>
+    </svg>
+  ),
+  Target: () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="10"></circle>
+      <circle cx="12" cy="12" r="6"></circle>
+      <circle cx="12" cy="12" r="2"></circle>
+    </svg>
+  ),
 };
 
 // Animated Toggle Switch Component
@@ -1284,6 +1322,280 @@ const BibleAPI = {
 // Note: Using FirestoreService from firebase-config.js
 // All storage operations are now handled by Firestore
 
+// Bible Books data for whole-book selection
+const BIBLE_BOOKS = {
+  oldTestament: [
+    { name: "Genesis", code: "GEN", chapters: 50 },
+    { name: "Exodus", code: "EXO", chapters: 40 },
+    { name: "Leviticus", code: "LEV", chapters: 27 },
+    { name: "Numbers", code: "NUM", chapters: 36 },
+    { name: "Deuteronomy", code: "DEU", chapters: 34 },
+    { name: "Joshua", code: "JOS", chapters: 24 },
+    { name: "Judges", code: "JDG", chapters: 21 },
+    { name: "Ruth", code: "RUT", chapters: 4 },
+    { name: "1 Samuel", code: "1SA", chapters: 31 },
+    { name: "2 Samuel", code: "2SA", chapters: 24 },
+    { name: "1 Kings", code: "1KI", chapters: 22 },
+    { name: "2 Kings", code: "2KI", chapters: 25 },
+    { name: "1 Chronicles", code: "1CH", chapters: 29 },
+    { name: "2 Chronicles", code: "2CH", chapters: 36 },
+    { name: "Ezra", code: "EZR", chapters: 10 },
+    { name: "Nehemiah", code: "NEH", chapters: 13 },
+    { name: "Esther", code: "EST", chapters: 10 },
+    { name: "Job", code: "JOB", chapters: 42 },
+    { name: "Psalms", code: "PSA", chapters: 150 },
+    { name: "Proverbs", code: "PRO", chapters: 31 },
+    { name: "Ecclesiastes", code: "ECC", chapters: 12 },
+    { name: "Song of Solomon", code: "SNG", chapters: 8 },
+    { name: "Isaiah", code: "ISA", chapters: 66 },
+    { name: "Jeremiah", code: "JER", chapters: 52 },
+    { name: "Lamentations", code: "LAM", chapters: 5 },
+    { name: "Ezekiel", code: "EZK", chapters: 48 },
+    { name: "Daniel", code: "DAN", chapters: 12 },
+    { name: "Hosea", code: "HOS", chapters: 14 },
+    { name: "Joel", code: "JOL", chapters: 3 },
+    { name: "Amos", code: "AMO", chapters: 9 },
+    { name: "Obadiah", code: "OBA", chapters: 1 },
+    { name: "Jonah", code: "JON", chapters: 4 },
+    { name: "Micah", code: "MIC", chapters: 7 },
+    { name: "Nahum", code: "NAM", chapters: 3 },
+    { name: "Habakkuk", code: "HAB", chapters: 3 },
+    { name: "Zephaniah", code: "ZEP", chapters: 3 },
+    { name: "Haggai", code: "HAG", chapters: 2 },
+    { name: "Zechariah", code: "ZEC", chapters: 14 },
+    { name: "Malachi", code: "MAL", chapters: 4 },
+  ],
+  newTestament: [
+    { name: "Matthew", code: "MAT", chapters: 28 },
+    { name: "Mark", code: "MRK", chapters: 16 },
+    { name: "Luke", code: "LUK", chapters: 24 },
+    { name: "John", code: "JHN", chapters: 21 },
+    { name: "Acts", code: "ACT", chapters: 28 },
+    { name: "Romans", code: "ROM", chapters: 16 },
+    { name: "1 Corinthians", code: "1CO", chapters: 16 },
+    { name: "2 Corinthians", code: "2CO", chapters: 13 },
+    { name: "Galatians", code: "GAL", chapters: 6 },
+    { name: "Ephesians", code: "EPH", chapters: 6 },
+    { name: "Philippians", code: "PHP", chapters: 4 },
+    { name: "Colossians", code: "COL", chapters: 4 },
+    { name: "1 Thessalonians", code: "1TH", chapters: 5 },
+    { name: "2 Thessalonians", code: "2TH", chapters: 3 },
+    { name: "1 Timothy", code: "1TI", chapters: 6 },
+    { name: "2 Timothy", code: "2TI", chapters: 4 },
+    { name: "Titus", code: "TIT", chapters: 3 },
+    { name: "Philemon", code: "PHM", chapters: 1 },
+    { name: "Hebrews", code: "HEB", chapters: 13 },
+    { name: "James", code: "JAS", chapters: 5 },
+    { name: "1 Peter", code: "1PE", chapters: 5 },
+    { name: "2 Peter", code: "2PE", chapters: 3 },
+    { name: "1 John", code: "1JN", chapters: 5 },
+    { name: "2 John", code: "2JN", chapters: 1 },
+    { name: "3 John", code: "3JN", chapters: 1 },
+    { name: "Jude", code: "JUD", chapters: 1 },
+    { name: "Revelation", code: "REV", chapters: 22 },
+  ],
+};
+
+// Points system constants
+const POINTS = {
+  VERSE_MEMORIZED: 10,
+  QUIZ_CORRECT: 25,
+  QUIZ_FAST_BONUS: 15,   // Answered in < 5 seconds
+  QUIZ_STREAK_BONUS: 10, // Each consecutive correct
+  QUIZ_PERFECT: 100,     // All questions correct
+};
+
+// Quiz question generator
+function generateQuizQuestions(verses) {
+  if (!verses || verses.length < 2) return [];
+
+  const questions = [];
+  const shuffled = [...verses].sort(() => Math.random() - 0.5);
+
+  shuffled.forEach((verse) => {
+    if (!verse.text || !verse.reference) return;
+
+    // Question type 1: "Which verse is this?" - show text, pick reference
+    if (verses.length >= 4) {
+      const wrongAnswers = verses
+        .filter((v) => v.id !== verse.id && v.reference)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3)
+        .map((v) => v.reference);
+
+      if (wrongAnswers.length >= 3) {
+        const options = [...wrongAnswers, verse.reference].sort(() => Math.random() - 0.5);
+        questions.push({
+          type: "identify",
+          question: verse.text.length > 150 ? verse.text.substring(0, 150) + "..." : verse.text,
+          questionLabel: "Which verse is this?",
+          correctAnswer: verse.reference,
+          options,
+          verseId: verse.id,
+        });
+      }
+    }
+
+    // Question type 2: "Fill in the blank" - remove key word
+    if (verse.text.split(" ").length > 5) {
+      const words = verse.text.split(" ");
+      const targetIdx = Math.floor(Math.random() * (words.length - 2)) + 1;
+      const correctWord = words[targetIdx].replace(/[.,!?;:'"]/g, "");
+
+      if (correctWord.length > 2) {
+        const blanked = words.map((w, i) => (i === targetIdx ? "______" : w)).join(" ");
+
+        // Generate wrong options from other verses
+        const otherWords = verses
+          .filter((v) => v.id !== verse.id)
+          .flatMap((v) => v.text.split(" "))
+          .map((w) => w.replace(/[.,!?;:'"]/g, ""))
+          .filter((w) => w.length > 2 && w.toLowerCase() !== correctWord.toLowerCase());
+
+        const uniqueOthers = [...new Set(otherWords)].sort(() => Math.random() - 0.5).slice(0, 3);
+
+        if (uniqueOthers.length >= 3) {
+          const options = [...uniqueOthers, correctWord].sort(() => Math.random() - 0.5);
+          questions.push({
+            type: "complete",
+            question: blanked,
+            questionLabel: `Complete the verse (${verse.reference})`,
+            correctAnswer: correctWord,
+            options,
+            verseId: verse.id,
+          });
+        }
+      }
+    }
+  });
+
+  return questions.sort(() => Math.random() - 0.5).slice(0, 10);
+}
+
+// BookSelector component
+function BookSelector({ onSelectBook, onClose }) {
+  const [selectedTestament, setSelectedTestament] = useState("new");
+
+  const books = selectedTestament === "old" ? BIBLE_BOOKS.oldTestament : BIBLE_BOOKS.newTestament;
+
+  return (
+    <div style={{ marginBottom: "20px" }}>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+        <button
+          className="btn"
+          onClick={() => setSelectedTestament("old")}
+          style={{
+            flex: 1,
+            background: selectedTestament === "old" ? "linear-gradient(135deg, #8b6f47 0%, #6b5537 100%)" : "#f5f1e8",
+            color: selectedTestament === "old" ? "white" : "#5a4d37",
+            border: "none",
+            padding: "10px",
+            fontSize: "0.85rem",
+          }}
+        >
+          Old Testament
+        </button>
+        <button
+          className="btn"
+          onClick={() => setSelectedTestament("new")}
+          style={{
+            flex: 1,
+            background: selectedTestament === "new" ? "linear-gradient(135deg, #8b6f47 0%, #6b5537 100%)" : "#f5f1e8",
+            color: selectedTestament === "new" ? "white" : "#5a4d37",
+            border: "none",
+            padding: "10px",
+            fontSize: "0.85rem",
+          }}
+        >
+          New Testament
+        </button>
+      </div>
+      <div className="book-selector-grid">
+        {books.map((book) => (
+          <button
+            key={book.code}
+            className="book-selector-btn"
+            onClick={() => onSelectBook(book)}
+          >
+            {book.name}
+            <div style={{ fontSize: "0.65rem", color: "#8b7355", marginTop: "2px" }}>
+              {book.chapters} ch.
+            </div>
+          </button>
+        ))}
+      </div>
+      <button
+        className="btn btn-secondary"
+        onClick={onClose}
+        style={{ marginTop: "10px", width: "100%" }}
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+// ChapterNavigator component
+function ChapterNavigator({ book, currentChapter, onChapterChange, totalChapters }) {
+  return (
+    <div className="chapter-nav">
+      <button
+        className="chapter-nav-btn"
+        onClick={() => onChapterChange(currentChapter - 1)}
+        disabled={currentChapter <= 1}
+      >
+        <Icons.ChevronLeft />
+      </button>
+      <div className="chapter-nav-info">
+        <div className="chapter-nav-title">{book} {currentChapter}</div>
+        <div className="chapter-nav-subtitle">Chapter {currentChapter} of {totalChapters}</div>
+      </div>
+      <button
+        className="chapter-nav-btn"
+        onClick={() => onChapterChange(currentChapter + 1)}
+        disabled={currentChapter >= totalChapters}
+      >
+        <Icons.ChevronRight />
+      </button>
+    </div>
+  );
+}
+
+// MobileBottomNav component
+function MobileBottomNav({ activeTab, setActiveTab }) {
+  const tabs = [
+    { id: "search", label: "Search", icon: Icons.Search },
+    { id: "verses", label: "Verses", icon: Icons.Book },
+    { id: "studies", label: "Study", icon: Icons.BookMarked },
+    { id: "quiz", label: "Quiz", icon: Icons.Zap },
+    { id: "practice", label: "Practice", icon: Icons.Brain },
+    { id: "leaderboard", label: "Ranks", icon: Icons.Trophy },
+    { id: "prayer", label: "Prayer", icon: Icons.Hands },
+    { id: "stats", label: "Progress", icon: Icons.BarChart },
+  ];
+
+  return (
+    <div className="mobile-bottom-nav">
+      {tabs.map((tab) => {
+        const IconComponent = tab.icon;
+        return (
+          <button
+            key={tab.id}
+            className={`mobile-nav-item ${activeTab === tab.id ? "active" : ""}`}
+            onClick={() => {
+              setActiveTab(tab.id);
+              SoundEffects.playClick();
+            }}
+          >
+            <IconComponent />
+            <span className="mobile-nav-label">{tab.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -1361,6 +1673,31 @@ function App() {
   const [collapsedReferences, setCollapsedReferences] = useState({});
   const [collapsedPassages, setCollapsedPassages] = useState({}); // Track collapsed state for passages
 
+  // Book selector / chapter navigation state
+  const [showBookSelector, setShowBookSelector] = useState(false);
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [currentChapter, setCurrentChapter] = useState(1);
+  const [bookStudyLoading, setBookStudyLoading] = useState(false);
+
+  // Quiz state
+  const [quizActive, setQuizActive] = useState(false);
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [quizCurrentIndex, setQuizCurrentIndex] = useState(0);
+  const [quizScore, setQuizScore] = useState(0);
+  const [quizStreak, setQuizStreak] = useState(0);
+  const [quizTimeLeft, setQuizTimeLeft] = useState(20);
+  const [quizAnswered, setQuizAnswered] = useState(false);
+  const [quizSelectedOption, setQuizSelectedOption] = useState(null);
+  const [quizResults, setQuizResults] = useState(null);
+  const [quizCorrectCount, setQuizCorrectCount] = useState(0);
+  const [showPointsPopup, setShowPointsPopup] = useState(null);
+  const quizTimerRef = useRef(null);
+
+  // Points & Leaderboard state
+  const [userPoints, setUserPoints] = useState(0);
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -1403,6 +1740,27 @@ function App() {
             setPrayers(userPrayers);
             setStudies(userStudies);
             setGroupStudies(userGroupStudies);
+
+            // Load user points
+            try {
+              const pointsDoc = await db.collection('users').doc(userData.uid).get();
+              if (pointsDoc.exists && pointsDoc.data().points) {
+                setUserPoints(pointsDoc.data().points);
+              } else {
+                // Calculate points from memorized verses
+                const memorizedCount = userVerses.filter(v => v.memorized).length;
+                const initialPoints = memorizedCount * POINTS.VERSE_MEMORIZED;
+                setUserPoints(initialPoints);
+                await db.collection('users').doc(userData.uid).set({
+                  points: initialPoints,
+                  displayName: userData.displayName,
+                  photoURL: userData.photoURL,
+                  email: userData.email,
+                }, { merge: true });
+              }
+            } catch (pointsErr) {
+              console.error("Points load error:", pointsErr);
+            }
           } catch (err) {
             console.error("Data load error:", err);
             setError("Failed to load data. Please refresh the page.");
@@ -1731,6 +2089,13 @@ function App() {
     try {
       const updatedVerses = await FirestoreService.toggleMemorized(id);
       setVerses(updatedVerses);
+
+      // Award/remove points for memorization
+      if (!wasMemorized) {
+        await addPoints(POINTS.VERSE_MEMORIZED);
+      } else {
+        await addPoints(-POINTS.VERSE_MEMORIZED);
+      }
     } catch (error) {
       console.error("Error toggling memorized status:", error);
       // Rollback on error
@@ -3080,6 +3445,276 @@ function App() {
     // Could show a toast notification here
   };
 
+  // ============================
+  // POINTS SYSTEM
+  // ============================
+  const addPoints = async (amount) => {
+    const newPoints = Math.max(0, userPoints + amount);
+    setUserPoints(newPoints);
+
+    if (user && db) {
+      try {
+        const memorizedCount = verses.filter(v => v.memorized).length;
+        await db.collection('users').doc(user.uid).set({
+          points: newPoints,
+          memorizedCount: memorizedCount,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          email: user.email,
+          lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+      } catch (err) {
+        console.error("Error updating points:", err);
+      }
+    }
+  };
+
+  // ============================
+  // LEADERBOARD
+  // ============================
+  const loadLeaderboard = async () => {
+    if (!db) return;
+    setLeaderboardLoading(true);
+    try {
+      const snapshot = await db.collection('users')
+        .orderBy('points', 'desc')
+        .limit(50)
+        .get();
+
+      const data = [];
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        if (d.points > 0 && d.displayName) {
+          data.push({
+            uid: doc.id,
+            displayName: d.displayName || "Anonymous",
+            photoURL: d.photoURL || null,
+            points: d.points || 0,
+            memorizedCount: d.memorizedCount || 0,
+          });
+        }
+      });
+      setLeaderboardData(data);
+    } catch (err) {
+      console.error("Error loading leaderboard:", err);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  };
+
+  // ============================
+  // QUIZ SYSTEM
+  // ============================
+  const startQuiz = () => {
+    if (verses.length < 4) {
+      setError("You need at least 4 saved verses to start a quiz. Add more verses from the Search tab!");
+      return;
+    }
+
+    const questions = generateQuizQuestions(verses);
+    if (questions.length === 0) {
+      setError("Could not generate quiz questions. Try adding more verses.");
+      return;
+    }
+
+    setQuizQuestions(questions);
+    setQuizCurrentIndex(0);
+    setQuizScore(0);
+    setQuizStreak(0);
+    setQuizCorrectCount(0);
+    setQuizAnswered(false);
+    setQuizSelectedOption(null);
+    setQuizResults(null);
+    setQuizTimeLeft(20);
+    setQuizActive(true);
+    setError("");
+    SoundEffects.playClick();
+
+    // Start timer
+    if (quizTimerRef.current) clearInterval(quizTimerRef.current);
+    quizTimerRef.current = setInterval(() => {
+      setQuizTimeLeft((prev) => {
+        if (prev <= 1) {
+          // Time's up - auto answer wrong
+          handleQuizTimeout();
+          return 20;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleQuizTimeout = () => {
+    if (quizAnswered) return;
+    setQuizAnswered(true);
+    setQuizStreak(0);
+    SoundEffects.playError();
+
+    setTimeout(() => advanceQuiz(), 1500);
+  };
+
+  const handleQuizAnswer = (option) => {
+    if (quizAnswered) return;
+
+    const question = quizQuestions[quizCurrentIndex];
+    const isCorrect = option === question.correctAnswer;
+
+    setQuizAnswered(true);
+    setQuizSelectedOption(option);
+
+    if (isCorrect) {
+      let earned = POINTS.QUIZ_CORRECT;
+      const newStreak = quizStreak + 1;
+      setQuizStreak(newStreak);
+      setQuizCorrectCount((prev) => prev + 1);
+
+      // Fast bonus
+      if (quizTimeLeft > 15) {
+        earned += POINTS.QUIZ_FAST_BONUS;
+      }
+
+      // Streak bonus
+      if (newStreak > 1) {
+        earned += POINTS.QUIZ_STREAK_BONUS * (newStreak - 1);
+      }
+
+      setQuizScore((prev) => prev + earned);
+      setShowPointsPopup(`+${earned}`);
+      setTimeout(() => setShowPointsPopup(null), 1000);
+      SoundEffects.playSuccess();
+    } else {
+      setQuizStreak(0);
+      SoundEffects.playError();
+    }
+
+    setTimeout(() => advanceQuiz(), 1500);
+  };
+
+  const advanceQuiz = () => {
+    const nextIndex = quizCurrentIndex + 1;
+
+    if (nextIndex >= quizQuestions.length) {
+      // Quiz complete
+      finishQuiz();
+    } else {
+      setQuizCurrentIndex(nextIndex);
+      setQuizAnswered(false);
+      setQuizSelectedOption(null);
+      setQuizTimeLeft(20);
+    }
+  };
+
+  const finishQuiz = async () => {
+    if (quizTimerRef.current) clearInterval(quizTimerRef.current);
+
+    let finalScore = quizScore;
+
+    // Perfect bonus
+    if (quizCorrectCount === quizQuestions.length) {
+      finalScore += POINTS.QUIZ_PERFECT;
+    }
+
+    setQuizResults({
+      score: finalScore,
+      correct: quizCorrectCount,
+      total: quizQuestions.length,
+      streak: quizStreak,
+    });
+    setQuizActive(false);
+
+    // Award points
+    if (finalScore > 0) {
+      await addPoints(finalScore);
+    }
+
+    SoundEffects.playCelebration();
+    if (quizCorrectCount === quizQuestions.length) {
+      Confetti.create();
+    }
+  };
+
+  const exitQuiz = () => {
+    if (quizTimerRef.current) clearInterval(quizTimerRef.current);
+    setQuizActive(false);
+    setQuizResults(null);
+    setQuizQuestions([]);
+  };
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (quizTimerRef.current) clearInterval(quizTimerRef.current);
+    };
+  }, []);
+
+  // ============================
+  // BOOK / CHAPTER NAVIGATION FOR STUDIES
+  // ============================
+  const handleSelectBook = async (book) => {
+    setSelectedBook(book);
+    setCurrentChapter(1);
+    setShowBookSelector(false);
+    setBookStudyLoading(true);
+    setError("");
+
+    try {
+      const verseData = await BibleAPI.fetchVerse(`${book.name} 1`, "KJV");
+      const parsedVerses = parseVersesFromContent(
+        verseData.rawContent || verseData.text,
+        verseData.reference
+      );
+
+      let verses = parsedVerses.length > 0 ? parsedVerses : [{ verseNumber: "1", text: verseData.text }];
+
+      const newPassage = {
+        reference: `${book.name} 1`,
+        verses: verses.filter(v => v && v.verseNumber && v.text)
+      };
+
+      setStudyPassages([newPassage]);
+      setStudyTitle(book.name);
+      SoundEffects.playSuccess();
+    } catch (err) {
+      setError(`Could not load ${book.name} chapter 1. ${err.message}`);
+      SoundEffects.playError();
+    } finally {
+      setBookStudyLoading(false);
+    }
+  };
+
+  const handleChapterChange = async (newChapter) => {
+    if (!selectedBook || newChapter < 1 || newChapter > selectedBook.chapters) return;
+
+    setCurrentChapter(newChapter);
+    setBookStudyLoading(true);
+    setError("");
+
+    try {
+      const ref = `${selectedBook.name} ${newChapter}`;
+      const verseData = await BibleAPI.fetchVerse(ref, "KJV");
+      const parsedVerses = parseVersesFromContent(
+        verseData.rawContent || verseData.text,
+        verseData.reference
+      );
+
+      let verses = parsedVerses.length > 0 ? parsedVerses : [{ verseNumber: "1", text: verseData.text }];
+
+      const newPassage = {
+        reference: ref,
+        verses: verses.filter(v => v && v.verseNumber && v.text)
+      };
+
+      // Replace the current passage with the new chapter
+      setStudyPassages([newPassage]);
+      SoundEffects.playClick();
+    } catch (err) {
+      setError(`Could not load chapter ${newChapter}. ${err.message}`);
+      SoundEffects.playError();
+    } finally {
+      setBookStudyLoading(false);
+    }
+  };
+
   const stats = {
     total: verses.length,
     memorized: verses.filter((v) => v.memorized).length,
@@ -3089,10 +3724,11 @@ function App() {
   // Show loading while checking authentication
   if (authLoading) {
     return (
-      <div className="container">
-        <div className="loading">
-          <div className="spinner"></div>
-          Loading...
+      <div className="loading-screen">
+        <div className="spinner"></div>
+        <div className="loading-title">Scripture Memory</div>
+        <div className="loading-subtitle">
+          "Thy word have I hid in mine heart, that I might not sin against thee." — Psalm 119:11
         </div>
       </div>
     );
@@ -3134,10 +3770,15 @@ function App() {
               <span className="user-name">
                 {user.displayName || user.email}
               </span>
-              <button className="btn-logout" onClick={handleLogout}>
-                <Icons.LogOut />
-                Logout
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span className="points-badge points-badge-small">
+                  <Icons.Star filled /> {userPoints}
+                </span>
+                <button className="btn-logout" onClick={handleLogout}>
+                  <Icons.LogOut />
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3164,10 +3805,25 @@ function App() {
             <Icons.BookMarked /> Bible Studies
           </button>
           <button
+            className={`tab ${activeTab === "quiz" ? "active" : ""}`}
+            onClick={() => setActiveTab("quiz")}
+          >
+            <Icons.Zap /> Quiz
+          </button>
+          <button
             className={`tab ${activeTab === "practice" ? "active" : ""}`}
             onClick={() => setActiveTab("practice")}
           >
             <Icons.Brain /> Practice
+          </button>
+          <button
+            className={`tab ${activeTab === "leaderboard" ? "active" : ""}`}
+            onClick={() => {
+              setActiveTab("leaderboard");
+              loadLeaderboard();
+            }}
+          >
+            <Icons.Trophy /> Leaderboard
           </button>
           <button
             className={`tab ${activeTab === "prayer" ? "active" : ""}`}
@@ -3528,6 +4184,360 @@ function App() {
                 );
               })()
             )}
+          </div>
+        )}
+
+        {/* =================== QUIZ TAB =================== */}
+        {activeTab === "quiz" && (
+          <div className="quiz-container">
+            {!quizActive && !quizResults && (
+              <div>
+                <div style={{
+                  textAlign: "center",
+                  padding: "30px 20px",
+                  background: "linear-gradient(135deg, #faf8f3 0%, #f5f1e8 100%)",
+                  borderRadius: "16px",
+                  border: "2px solid #e8dcc8",
+                  marginBottom: "20px",
+                }}>
+                  <div style={{ fontSize: "3rem", marginBottom: "12px" }}>
+                    <Icons.Zap />
+                  </div>
+                  <h2 style={{ color: "#2c2416", marginBottom: "8px" }}>Scripture Quiz</h2>
+                  <p style={{ color: "#5a4d37", marginBottom: "6px", lineHeight: "1.6" }}>
+                    Test your knowledge of the verses you've been memorizing!
+                  </p>
+                  <p style={{ color: "#8b7355", fontSize: "0.85rem", marginBottom: "20px" }}>
+                    Earn points for correct answers. Faster answers and streaks give bonus points!
+                  </p>
+
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: "10px",
+                    marginBottom: "20px",
+                    maxWidth: "360px",
+                    margin: "0 auto 20px",
+                  }}>
+                    <div style={{ padding: "12px", background: "white", borderRadius: "10px", border: "1px solid #e8dcc8" }}>
+                      <div style={{ fontSize: "1.3rem", fontWeight: "700", color: "#8b6f47" }}>
+                        {POINTS.QUIZ_CORRECT}
+                      </div>
+                      <div style={{ fontSize: "0.7rem", color: "#8b7355" }}>pts/correct</div>
+                    </div>
+                    <div style={{ padding: "12px", background: "white", borderRadius: "10px", border: "1px solid #e8dcc8" }}>
+                      <div style={{ fontSize: "1.3rem", fontWeight: "700", color: "#6b8e5f" }}>
+                        +{POINTS.QUIZ_FAST_BONUS}
+                      </div>
+                      <div style={{ fontSize: "0.7rem", color: "#8b7355" }}>fast bonus</div>
+                    </div>
+                    <div style={{ padding: "12px", background: "white", borderRadius: "10px", border: "1px solid #e8dcc8" }}>
+                      <div style={{ fontSize: "1.3rem", fontWeight: "700", color: "#d97706" }}>
+                        +{POINTS.QUIZ_STREAK_BONUS}
+                      </div>
+                      <div style={{ fontSize: "0.7rem", color: "#8b7355" }}>streak bonus</div>
+                    </div>
+                    <div style={{ padding: "12px", background: "white", borderRadius: "10px", border: "1px solid #e8dcc8" }}>
+                      <div style={{ fontSize: "1.3rem", fontWeight: "700", color: "#c85a54" }}>
+                        {POINTS.QUIZ_PERFECT}
+                      </div>
+                      <div style={{ fontSize: "0.7rem", color: "#8b7355" }}>perfect bonus</div>
+                    </div>
+                  </div>
+
+                  {error && <div className="error" style={{ marginBottom: "16px" }}>{error}</div>}
+
+                  <button
+                    className="btn btn-primary"
+                    onClick={startQuiz}
+                    style={{ padding: "14px 32px", fontSize: "1.05rem", minWidth: "200px" }}
+                  >
+                    <Icons.Zap /> Start Quiz
+                  </button>
+
+                  <div style={{ marginTop: "16px", fontSize: "0.8rem", color: "#8b7355" }}>
+                    {verses.length < 4
+                      ? `You need at least 4 saved verses (you have ${verses.length})`
+                      : `${verses.length} verses available • Up to 10 questions`}
+                  </div>
+                </div>
+
+                {/* Your Points */}
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  padding: "14px",
+                  background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                  borderRadius: "12px",
+                  color: "white",
+                }}>
+                  <Icons.Star filled />
+                  <span style={{ fontWeight: "700", fontSize: "1.1rem" }}>{userPoints} Points</span>
+                </div>
+              </div>
+            )}
+
+            {/* Active Quiz */}
+            {quizActive && quizQuestions.length > 0 && (
+              <div>
+                <div className="quiz-header">
+                  <div className={`quiz-timer ${quizTimeLeft <= 5 ? "danger" : quizTimeLeft <= 10 ? "warning" : ""}`}>
+                    <Icons.Clock /> {quizTimeLeft}s
+                  </div>
+                  <div className="quiz-progress">
+                    {quizCurrentIndex + 1} / {quizQuestions.length}
+                  </div>
+                  <div className="quiz-score">
+                    <Icons.Star filled /> {quizScore}
+                  </div>
+                </div>
+
+                {quizStreak > 1 && (
+                  <div style={{
+                    textAlign: "center",
+                    padding: "6px",
+                    background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                    color: "white",
+                    borderRadius: "8px",
+                    fontWeight: "700",
+                    fontSize: "0.85rem",
+                    marginBottom: "12px",
+                  }}>
+                    {quizStreak} Streak!
+                  </div>
+                )}
+
+                <div className="quiz-question-card">
+                  <div className="quiz-question-label">
+                    {quizQuestions[quizCurrentIndex].questionLabel}
+                  </div>
+                  <div className="quiz-question-text">
+                    "{quizQuestions[quizCurrentIndex].question}"
+                  </div>
+                </div>
+
+                <div className="quiz-options">
+                  {quizQuestions[quizCurrentIndex].options.map((option, idx) => {
+                    const letters = ["A", "B", "C", "D"];
+                    const isCorrect = option === quizQuestions[quizCurrentIndex].correctAnswer;
+                    const isSelected = quizSelectedOption === option;
+                    let className = "quiz-option";
+                    if (quizAnswered) {
+                      if (isCorrect) className += " correct";
+                      else if (isSelected && !isCorrect) className += " wrong";
+                    } else if (isSelected) {
+                      className += " selected";
+                    }
+                    return (
+                      <button
+                        key={idx}
+                        className={className}
+                        onClick={() => handleQuizAnswer(option)}
+                        disabled={quizAnswered}
+                      >
+                        <span className="quiz-option-letter">{letters[idx]}</span>
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  className="btn btn-secondary"
+                  onClick={exitQuiz}
+                  style={{ marginTop: "16px", width: "100%" }}
+                >
+                  Exit Quiz
+                </button>
+              </div>
+            )}
+
+            {/* Points popup */}
+            {showPointsPopup && (
+              <div className="quiz-points-popup">{showPointsPopup}</div>
+            )}
+
+            {/* Quiz Results */}
+            {quizResults && (
+              <div className="quiz-results">
+                <div className="quiz-results-card">
+                  <div style={{ fontSize: "2.5rem", marginBottom: "8px" }}>
+                    {quizResults.correct === quizResults.total ? "🏆" : quizResults.correct > quizResults.total / 2 ? "⭐" : "📖"}
+                  </div>
+                  <div className="quiz-results-score">+{quizResults.score}</div>
+                  <div className="quiz-results-label">
+                    {quizResults.correct === quizResults.total
+                      ? "Perfect! Soli Deo Gloria!"
+                      : quizResults.correct > quizResults.total / 2
+                      ? "Well done, keep memorizing!"
+                      : "Keep studying God's Word!"}
+                  </div>
+
+                  <div className="quiz-results-stats">
+                    <div className="quiz-results-stat">
+                      <div className="quiz-results-stat-value">{quizResults.correct}/{quizResults.total}</div>
+                      <div className="quiz-results-stat-label">Correct</div>
+                    </div>
+                    <div className="quiz-results-stat">
+                      <div className="quiz-results-stat-value">{quizResults.score}</div>
+                      <div className="quiz-results-stat-label">Points Earned</div>
+                    </div>
+                    <div className="quiz-results-stat">
+                      <div className="quiz-results-stat-value">{userPoints}</div>
+                      <div className="quiz-results-stat-label">Total Points</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button
+                    className="btn btn-primary"
+                    onClick={startQuiz}
+                    style={{ flex: 1 }}
+                  >
+                    <Icons.Zap /> Play Again
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setQuizResults(null);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    Back
+                  </button>
+                </div>
+
+                <div className="glory-footer">
+                  "Whatever you do, do it all for the glory of God." — 1 Corinthians 10:31
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =================== LEADERBOARD TAB =================== */}
+        {activeTab === "leaderboard" && (
+          <div className="leaderboard-container">
+            <div className="leaderboard-banner">
+              <div className="leaderboard-banner-title">
+                <Icons.Crown /> For the Glory of God
+              </div>
+              <div className="leaderboard-banner-verse">
+                "Not to us, LORD, not to us but to your name be the glory, because of your love and faithfulness." — Psalm 115:1
+              </div>
+            </div>
+
+            {/* Your stats */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              padding: "16px",
+              background: "linear-gradient(135deg, #f5f1e8 0%, #e8dcc8 100%)",
+              borderRadius: "12px",
+              marginBottom: "16px",
+              border: "2px solid #8b6f47",
+            }}>
+              {user?.photoURL && (
+                <img src={user.photoURL} alt="" style={{ width: "40px", height: "40px", borderRadius: "50%", border: "2px solid #8b6f47" }} />
+              )}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: "700", color: "#2c2416" }}>{user?.displayName || "You"}</div>
+                <div style={{ fontSize: "0.8rem", color: "#8b7355" }}>
+                  {verses.filter(v => v.memorized).length} verses memorized
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div className="points-badge">
+                  <Icons.Star filled /> {userPoints}
+                </div>
+              </div>
+            </div>
+
+            <button
+              className="btn btn-secondary"
+              onClick={loadLeaderboard}
+              disabled={leaderboardLoading}
+              style={{ width: "100%", marginBottom: "16px" }}
+            >
+              {leaderboardLoading ? (
+                <>
+                  <div className="spinner-small"></div>
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Icons.Trophy /> Refresh Leaderboard
+                </>
+              )}
+            </button>
+
+            {leaderboardData.length > 0 ? (
+              <div className="leaderboard-list">
+                {leaderboardData.map((entry, index) => {
+                  const isCurrentUser = entry.uid === user?.uid;
+                  let rowClass = "leaderboard-row";
+                  if (index === 0) rowClass += " top-1";
+                  else if (index === 1) rowClass += " top-2";
+                  else if (index === 2) rowClass += " top-3";
+                  if (isCurrentUser) rowClass += " current-user";
+
+                  return (
+                    <div key={entry.uid} className={rowClass}>
+                      {index < 3 ? (
+                        <div className="leaderboard-rank-medal">
+                          {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
+                        </div>
+                      ) : (
+                        <div className="leaderboard-rank">{index + 1}</div>
+                      )}
+                      {entry.photoURL ? (
+                        <img src={entry.photoURL} alt="" className="leaderboard-avatar" />
+                      ) : (
+                        <div className="leaderboard-avatar" style={{
+                          background: "#e8dcc8",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#8b7355",
+                          fontWeight: "700",
+                          fontSize: "0.9rem",
+                        }}>
+                          {(entry.displayName || "?")[0]}
+                        </div>
+                      )}
+                      <div className="leaderboard-user-info">
+                        <div className="leaderboard-user-name">
+                          {entry.displayName} {isCurrentUser && "(You)"}
+                        </div>
+                      </div>
+                      <div className="leaderboard-points">
+                        <div className="leaderboard-points-value">{entry.points}</div>
+                        <div className="leaderboard-points-label">points</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : !leaderboardLoading ? (
+              <div style={{
+                textAlign: "center",
+                padding: "32px",
+                color: "#5a4d37",
+                background: "#f9f6f1",
+                borderRadius: "12px",
+              }}>
+                <Icons.Trophy />
+                <p style={{ marginTop: "12px" }}>No leaderboard data yet. Start memorizing and take quizzes to earn points!</p>
+              </div>
+            ) : null}
+
+            <div className="glory-footer">
+              "So, whether you eat or drink, or whatever you do, do all to the glory of God." — 1 Corinthians 10:31
+            </div>
           </div>
         )}
 
@@ -4364,6 +5374,40 @@ function App() {
                   />
 
                   <label className="study-label">Add Scripture Passages</label>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setShowBookSelector(!showBookSelector)}
+                      style={{ flex: "0 0 auto" }}
+                    >
+                      <Icons.Book /> {showBookSelector ? "Hide Books" : "Select Book"}
+                    </button>
+                  </div>
+                  {showBookSelector && (
+                    <BookSelector
+                      onSelectBook={(book) => {
+                        handleSelectBook(book);
+                        if (studyView === "create") {
+                          setStudyView("create");
+                        }
+                      }}
+                      onClose={() => setShowBookSelector(false)}
+                    />
+                  )}
+                  {selectedBook && (
+                    <ChapterNavigator
+                      book={selectedBook.name}
+                      currentChapter={currentChapter}
+                      onChapterChange={handleChapterChange}
+                      totalChapters={selectedBook.chapters}
+                    />
+                  )}
+                  {bookStudyLoading && (
+                    <div className="loading">
+                      <div className="spinner"></div>
+                      Loading chapter...
+                    </div>
+                  )}
                   <div className="search-box" style={{ marginBottom: "25px" }}>
                     <input
                       type="text"
@@ -5139,6 +6183,37 @@ function App() {
                   />
 
                   <label className="study-label">Scripture Reference</label>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setShowBookSelector(!showBookSelector)}
+                      style={{ flex: "0 0 auto" }}
+                    >
+                      <Icons.Book /> {showBookSelector ? "Hide Books" : "Select Whole Book"}
+                    </button>
+                  </div>
+                  {showBookSelector && (
+                    <BookSelector
+                      onSelectBook={(book) => {
+                        handleSelectBook(book);
+                      }}
+                      onClose={() => setShowBookSelector(false)}
+                    />
+                  )}
+                  {selectedBook && (
+                    <ChapterNavigator
+                      book={selectedBook.name}
+                      currentChapter={currentChapter}
+                      onChapterChange={handleChapterChange}
+                      totalChapters={selectedBook.chapters}
+                    />
+                  )}
+                  {bookStudyLoading && (
+                    <div className="loading">
+                      <div className="spinner"></div>
+                      Loading chapter...
+                    </div>
+                  )}
                   <div className="search-box" style={{ marginBottom: "25px" }}>
                     <input
                       type="text"
@@ -6583,6 +7658,10 @@ function App() {
         )}
       </div>
     </div>
+    <MobileBottomNav activeTab={activeTab} setActiveTab={(tab) => {
+      setActiveTab(tab);
+      if (tab === "leaderboard") loadLeaderboard();
+    }} />
     </>
   );
 }
