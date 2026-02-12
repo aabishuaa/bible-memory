@@ -1563,6 +1563,7 @@ function ChapterNavigator({ book, currentChapter, onChapterChange, totalChapters
 
 // MobileBottomNav component
 function MobileBottomNav({ activeTab, setActiveTab }) {
+  const navRef = React.useRef(null);
   const tabs = [
     { id: "search", label: "Search", icon: Icons.Search },
     { id: "verses", label: "Verses", icon: Icons.Book },
@@ -1574,8 +1575,18 @@ function MobileBottomNav({ activeTab, setActiveTab }) {
     { id: "stats", label: "Progress", icon: Icons.BarChart },
   ];
 
+  // Auto-scroll to active tab
+  React.useEffect(() => {
+    if (navRef.current) {
+      const activeEl = navRef.current.querySelector('.mobile-nav-item.active');
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [activeTab]);
+
   return (
-    <div className="mobile-bottom-nav">
+    <div className="mobile-bottom-nav" ref={navRef}>
       {tabs.map((tab) => {
         const IconComponent = tab.icon;
         return (
