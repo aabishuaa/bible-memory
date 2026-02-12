@@ -2331,8 +2331,15 @@ body {
         z-index: 9999;
         padding: 6px 4px;
         padding-bottom: max(6px, env(safe-area-inset-bottom));
-        justify-content: space-around;
         align-items: center;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .mobile-bottom-nav::-webkit-scrollbar {
+        display: none;
     }
 
     .mobile-nav-item {
@@ -2342,14 +2349,14 @@ body {
         justify-content: center;
         background: none;
         border: none;
-        padding: 4px 2px;
+        padding: 4px 6px;
         color: #8b7355;
         font-size: 0.65rem;
         font-family: inherit;
         cursor: pointer;
         transition: all 0.2s ease;
-        flex: 1;
-        min-width: 0;
+        flex: 0 0 auto;
+        min-width: 56px;
         gap: 2px;
         -webkit-tap-highlight-color: transparent;
         touch-action: manipulation;
@@ -2503,6 +2510,15 @@ body {
     .verse-actions,
     .verse-item-actions {
         flex-wrap: wrap;
+    }
+
+    /* Stack input + button rows vertically on mobile */
+    .input-with-button {
+        flex-direction: column !important;
+    }
+
+    .input-with-button > .btn {
+        align-self: flex-start !important;
     }
 }
 

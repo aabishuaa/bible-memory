@@ -5652,7 +5652,7 @@ function App() {
                                     <h4 style={{ margin: 0, color: "#2c2416", fontSize: "0.95rem" }}>
                                       <Icons.StickyNote style={{ width: "16px", height: "16px" }} /> Notes for Verse {index + 1}
                                     </h4>
-                                    <div style={{ display: "flex", gap: "8px" }}>
+                                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                                       <button
                                         className="btn btn-secondary btn-sm"
                                         onClick={() => {
@@ -5682,7 +5682,7 @@ function App() {
                                         onChange={(e) => setNoteText(e.target.value)}
                                         style={{ marginBottom: "8px", fontSize: "0.9rem" }}
                                       />
-                                      <div style={{ display: "flex", gap: "8px" }}>
+                                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                                         <button
                                           className="btn btn-success btn-sm"
                                           onClick={addNote}
@@ -5853,7 +5853,7 @@ function App() {
                             onChange={(e) => setAdditionalReferenceLabel(e.target.value)}
                             style={{ width: "100%" }}
                           />
-                          <div style={{ display: "flex", gap: "8px" }}>
+                          <div className="input-with-button" style={{ display: "flex", gap: "8px" }}>
                             <input
                               type="text"
                               className="input"
@@ -5996,7 +5996,7 @@ function App() {
                       </h3>
 
                       <div style={{ marginBottom: "15px" }}>
-                        <div style={{ display: "flex", gap: "8px" }}>
+                        <div className="input-with-button" style={{ display: "flex", gap: "8px" }}>
                           <textarea
                             className="input"
                             placeholder="Share your thoughts and reflections..."
@@ -6952,7 +6952,7 @@ function App() {
 
                   {currentStudy.isLead && (
                     <div style={{ marginBottom: "15px" }}>
-                      <div style={{ display: "flex", gap: "8px" }}>
+                      <div className="input-with-button" style={{ display: "flex", gap: "8px" }}>
                         <input
                           type="text"
                           className="input"
@@ -7085,7 +7085,7 @@ function App() {
                   </h3>
 
                   <div style={{ marginBottom: "15px" }}>
-                    <div style={{ display: "flex", gap: "8px" }}>
+                    <div className="input-with-button" style={{ display: "flex", gap: "8px" }}>
                       <textarea
                         className="input"
                         placeholder="Share your thoughts..."
