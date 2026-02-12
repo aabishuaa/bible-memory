@@ -108,6 +108,9 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.4);
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     animation: scaleIn 0.5s ease-out;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .card:hover {
@@ -200,7 +203,7 @@ body {
 
 .input {
     flex: 1;
-    min-width: 200px;
+    min-width: 0;
     padding: 14px 18px;
     border: 2px solid #e8dcc8;
     border-radius: 12px;
@@ -209,6 +212,7 @@ body {
     font-family: inherit;
     background: white;
     color: #2c2416;
+    box-sizing: border-box;
 }
 
 .input:focus {
@@ -1871,6 +1875,7 @@ body {
 /* Study Editor */
 .study-editor {
     animation: fadeInUp 0.5s ease-out;
+    overflow: hidden;
 }
 
 .study-editor-header {
@@ -1890,6 +1895,9 @@ body {
     border-radius: 16px;
     margin-bottom: 25px;
     border: 2px solid #e8dcc8;
+    overflow: hidden;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .study-label {
@@ -2008,6 +2016,7 @@ body {
     border-radius: 16px;
     margin-bottom: 25px;
     border: 2px solid #e8dcc8;
+    overflow: hidden;
 }
 
 .study-passage-section {
@@ -2017,6 +2026,9 @@ body {
     margin-bottom: 30px;
     border: 3px solid #e8dcc8;
     box-shadow: 0 4px 24px rgba(44, 36, 22, 0.1);
+    overflow: hidden;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .study-passage {
@@ -2115,6 +2127,9 @@ body {
     font-size: 1.1rem;
     color: #2c2416;
     line-height: 1.9;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    min-width: 0;
 }
 
 .highlight {
