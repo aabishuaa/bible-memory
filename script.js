@@ -5838,7 +5838,7 @@ function App() {
                     )}
 
                     {/* Additional Scripture References */}
-                    <div style={{ marginTop: "30px" }}>
+                    <div style={{ marginTop: "30px", overflow: "hidden" }}>
                       <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
                         <Icons.Book /> Additional Scripture References
                       </h3>
@@ -5851,9 +5851,9 @@ function App() {
                             placeholder="Label (e.g., Supporting Context, Chapter 2) - Optional"
                             value={additionalReferenceLabel}
                             onChange={(e) => setAdditionalReferenceLabel(e.target.value)}
-                            style={{ width: "100%" }}
+                            style={{ width: "100%", boxSizing: "border-box" }}
                           />
-                          <div className="input-with-button" style={{ display: "flex", gap: "8px" }}>
+                          <div className="input-with-button" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                             <input
                               type="text"
                               className="input"
@@ -5861,12 +5861,13 @@ function App() {
                               value={additionalReferenceInput}
                               onChange={(e) => setAdditionalReferenceInput(e.target.value)}
                               onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
-                              style={{ flex: 1 }}
+                              style={{ flex: 1, minWidth: 0 }}
                             />
                             <button
                               className="btn btn-success"
                               onClick={fetchAndAddAdditionalReference}
                               disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
+                              style={{ flexShrink: 0 }}
                             >
                               {loadingAdditionalReference ? (
                                 <>Loading...</>
@@ -5893,7 +5894,8 @@ function App() {
                                 background: "#f9f6f1",
                                 borderRadius: "8px",
                                 border: "2px solid #d4a574",
-                                boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+                                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                                overflow: "hidden"
                               }}
                             >
                               {ref.label && (
@@ -5903,7 +5905,9 @@ function App() {
                                   color: "#8b6f47",
                                   marginBottom: "8px",
                                   textTransform: "uppercase",
-                                  letterSpacing: "0.5px"
+                                  letterSpacing: "0.5px",
+                                  overflowWrap: "break-word",
+                                  wordBreak: "break-word"
                                 }}>
                                   {ref.label}
                                 </div>
@@ -5912,7 +5916,8 @@ function App() {
                                 display: "flex",
                                 justifyContent: "space-between",
                                 alignItems: "center",
-                                marginBottom: isCollapsed ? "0" : "10px"
+                                marginBottom: isCollapsed ? "0" : "10px",
+                                minWidth: 0
                               }}>
                                 <div
                                   style={{
@@ -5923,15 +5928,19 @@ function App() {
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "8px",
-                                    flex: 1
+                                    flex: 1,
+                                    minWidth: 0,
+                                    flexWrap: "wrap"
                                   }}
                                   onClick={() => toggleReferenceCollapse(ref.id)}
                                 >
-                                  <span style={{ fontSize: "0.8rem" }}>
+                                  <span style={{ fontSize: "0.8rem", flexShrink: 0 }}>
                                     {isCollapsed ? "▶" : "▼"}
                                   </span>
-                                  {ref.reference}
-                                  <span style={{ fontSize: "0.75rem", color: "#8b6f47" }}>
+                                  <span style={{ overflowWrap: "break-word", wordBreak: "break-word", minWidth: 0 }}>
+                                    {ref.reference}
+                                  </span>
+                                  <span style={{ fontSize: "0.75rem", color: "#8b6f47", flexShrink: 0 }}>
                                     ({ref.passages.filter(v => v && v.verseNumber && v.text).length} verse{ref.passages.filter(v => v && v.verseNumber && v.text).length > 1 ? "s" : ""})
                                   </span>
                                 </div>
@@ -5939,7 +5948,7 @@ function App() {
                                   className="icon-btn"
                                   onClick={() => removeAdditionalReferenceFromPersonalStudy(ref.id)}
                                   title="Remove reference"
-                                  style={{ fontSize: "0.8rem" }}
+                                  style={{ fontSize: "0.8rem", flexShrink: 0 }}
                                 >
                                   <Icons.Trash style={{ width: "14px", height: "14px" }} />
                                 </button>
@@ -5955,7 +5964,9 @@ function App() {
                                       borderRadius: "6px",
                                       fontSize: "0.9rem",
                                       lineHeight: "1.6",
-                                      color: "#2c2416"
+                                      color: "#2c2416",
+                                      overflowWrap: "break-word",
+                                      wordBreak: "break-word"
                                     }}
                                   >
                                     <span style={{
@@ -7231,7 +7242,7 @@ function App() {
                 </div>
 
                 {/* Additional Scripture References */}
-                <div style={{ marginBottom: "30px" }}>
+                <div style={{ marginBottom: "30px", overflow: "hidden" }}>
                   <h3 style={{ color: "#2c2416", marginBottom: "15px" }}>
                     <Icons.Book /> Additional Scripture References
                   </h3>
@@ -7244,9 +7255,9 @@ function App() {
                         placeholder="Label (e.g., Supporting Context, Chapter 2) - Optional"
                         value={additionalReferenceLabel}
                         onChange={(e) => setAdditionalReferenceLabel(e.target.value)}
-                        style={{ width: "100%" }}
+                        style={{ width: "100%", boxSizing: "border-box" }}
                       />
-                      <div style={{ display: "flex", gap: "8px" }}>
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                         <input
                           type="text"
                           className="input"
@@ -7254,12 +7265,13 @@ function App() {
                           value={additionalReferenceInput}
                           onChange={(e) => setAdditionalReferenceInput(e.target.value)}
                           onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
-                          style={{ flex: 1 }}
+                          style={{ flex: 1, minWidth: 0 }}
                         />
                         <button
                           className="btn btn-success"
                           onClick={fetchAndAddAdditionalReference}
                           disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
+                          style={{ flexShrink: 0 }}
                         >
                           {loadingAdditionalReference ? (
                             <>Loading...</>
@@ -7286,7 +7298,8 @@ function App() {
                             background: "#f9f6f1",
                             borderRadius: "8px",
                             border: "2px solid #d4a574",
-                            boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                            overflow: "hidden"
                           }}
                         >
                           {ref.label && (
@@ -7296,7 +7309,9 @@ function App() {
                               color: "#8b6f47",
                               marginBottom: "8px",
                               textTransform: "uppercase",
-                              letterSpacing: "0.5px"
+                              letterSpacing: "0.5px",
+                              overflowWrap: "break-word",
+                              wordBreak: "break-word"
                             }}>
                               {ref.label}
                             </div>
@@ -7305,7 +7320,8 @@ function App() {
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
-                            marginBottom: isCollapsed ? "0" : "10px"
+                            marginBottom: isCollapsed ? "0" : "10px",
+                            minWidth: 0
                           }}>
                             <div
                               style={{
@@ -7316,15 +7332,19 @@ function App() {
                                 display: "flex",
                                 alignItems: "center",
                                 gap: "8px",
-                                flex: 1
+                                flex: 1,
+                                minWidth: 0,
+                                flexWrap: "wrap"
                               }}
                               onClick={() => toggleReferenceCollapse(ref.id)}
                             >
-                              <span style={{ fontSize: "0.8rem" }}>
+                              <span style={{ fontSize: "0.8rem", flexShrink: 0 }}>
                                 {isCollapsed ? "▶" : "▼"}
                               </span>
-                              {ref.reference}
-                              <span style={{ fontSize: "0.75rem", color: "#8b6f47" }}>
+                              <span style={{ overflowWrap: "break-word", wordBreak: "break-word", minWidth: 0 }}>
+                                {ref.reference}
+                              </span>
+                              <span style={{ fontSize: "0.75rem", color: "#8b6f47", flexShrink: 0 }}>
                                 ({ref.passages.filter(v => v && v.verseNumber && v.text).length} verse{ref.passages.filter(v => v && v.verseNumber && v.text).length > 1 ? "s" : ""})
                               </span>
                             </div>
@@ -7332,7 +7352,7 @@ function App() {
                               className="icon-btn"
                               onClick={() => removeAdditionalReference(ref.id)}
                               title="Remove reference"
-                              style={{ fontSize: "0.8rem" }}
+                              style={{ fontSize: "0.8rem", flexShrink: 0 }}
                             >
                               <Icons.Trash style={{ width: "14px", height: "14px" }} />
                             </button>
@@ -7348,7 +7368,9 @@ function App() {
                                   borderRadius: "6px",
                                   fontSize: "0.9rem",
                                   lineHeight: "1.6",
-                                  color: "#2c2416"
+                                  color: "#2c2416",
+                                  overflowWrap: "break-word",
+                                  wordBreak: "break-word"
                                 }}
                               >
                                 <span style={{
