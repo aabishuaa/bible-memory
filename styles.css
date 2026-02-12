@@ -2517,8 +2517,15 @@ body {
         flex-direction: column !important;
     }
 
+    .input-with-button > .input,
+    .input-with-button > textarea {
+        width: 100% !important;
+        flex: none !important;
+    }
+
     .input-with-button > .btn {
         align-self: flex-start !important;
+        flex-shrink: 0 !important;
     }
 }
 

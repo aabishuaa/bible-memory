@@ -7246,7 +7246,7 @@ function App() {
                         onChange={(e) => setAdditionalReferenceLabel(e.target.value)}
                         style={{ width: "100%" }}
                       />
-                      <div style={{ display: "flex", gap: "8px" }}>
+                      <div className="input-with-button" style={{ display: "flex", gap: "8px" }}>
                         <input
                           type="text"
                           className="input"
