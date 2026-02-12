@@ -2960,6 +2960,7 @@ function App() {
 
   const loadGroupStudy = (study) => {
     setCurrentStudy(study);
+    setStudyType("group");
     setStudyTitle(study.title);
     setStudyReference("");
 
