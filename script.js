@@ -5853,28 +5853,27 @@ function App() {
                             onChange={(e) => setAdditionalReferenceLabel(e.target.value)}
                             style={{ width: "100%" }}
                           />
-                          <div className="input-with-button" style={{ display: "flex", gap: "8px" }}>
-                            <input
-                              type="text"
-                              className="input"
-                              placeholder="Scripture reference (e.g., John 3:16, Psalm 23:1-6)"
-                              value={additionalReferenceInput}
-                              onChange={(e) => setAdditionalReferenceInput(e.target.value)}
-                              onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
-                              style={{ flex: 1 }}
-                            />
-                            <button
-                              className="btn btn-success"
-                              onClick={fetchAndAddAdditionalReference}
-                              disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
-                            >
-                              {loadingAdditionalReference ? (
-                                <>Loading...</>
-                              ) : (
-                                <><Icons.Plus /> Add</>
-                              )}
-                            </button>
-                          </div>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="Scripture reference (e.g., John 3:16, Psalm 23:1-6)"
+                            value={additionalReferenceInput}
+                            onChange={(e) => setAdditionalReferenceInput(e.target.value)}
+                            onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
+                            style={{ width: "100%" }}
+                          />
+                          <button
+                            className="btn btn-success"
+                            onClick={fetchAndAddAdditionalReference}
+                            disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
+                            style={{ alignSelf: "flex-start" }}
+                          >
+                            {loadingAdditionalReference ? (
+                              <>Loading...</>
+                            ) : (
+                              <><Icons.Plus /> Add</>
+                            )}
+                          </button>
                         </div>
                         <div style={{ fontSize: "0.8rem", color: "#5a4d37", marginTop: "4px" }}>
                           Add related passages, supporting verses, or additional chapters to your study
@@ -7246,28 +7245,27 @@ function App() {
                         onChange={(e) => setAdditionalReferenceLabel(e.target.value)}
                         style={{ width: "100%" }}
                       />
-                      <div className="input-with-button" style={{ display: "flex", gap: "8px" }}>
-                        <input
-                          type="text"
-                          className="input"
-                          placeholder="Scripture reference (e.g., John 3:16, Psalm 23:1-6)"
-                          value={additionalReferenceInput}
-                          onChange={(e) => setAdditionalReferenceInput(e.target.value)}
-                          onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
-                          style={{ flex: 1 }}
-                        />
-                        <button
-                          className="btn btn-success"
-                          onClick={fetchAndAddAdditionalReference}
-                          disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
-                        >
-                          {loadingAdditionalReference ? (
-                            <>Loading...</>
-                          ) : (
-                            <><Icons.Plus /> Add</>
-                          )}
-                        </button>
-                      </div>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Scripture reference (e.g., John 3:16, Psalm 23:1-6)"
+                        value={additionalReferenceInput}
+                        onChange={(e) => setAdditionalReferenceInput(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && fetchAndAddAdditionalReference()}
+                        style={{ width: "100%" }}
+                      />
+                      <button
+                        className="btn btn-success"
+                        onClick={fetchAndAddAdditionalReference}
+                        disabled={!additionalReferenceInput.trim() || loadingAdditionalReference}
+                        style={{ alignSelf: "flex-start" }}
+                      >
+                        {loadingAdditionalReference ? (
+                          <>Loading...</>
+                        ) : (
+                          <><Icons.Plus /> Add</>
+                        )}
+                      </button>
                     </div>
                     <div style={{ fontSize: "0.8rem", color: "#5a4d37", marginTop: "4px" }}>
                       Add related passages, supporting verses, or additional chapters to your study
