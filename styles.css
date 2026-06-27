@@ -194,6 +194,91 @@ body {
     box-shadow: 0 2px 8px rgba(139, 111, 71, 0.4);
 }
 
+/* Tab bar with left/right navigation arrows */
+.tab-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 25px;
+}
+
+.tab-nav .tabs {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.tab-arrow {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 44px;
+    border: 2px solid #e8dcc8;
+    background: #fff;
+    color: #8b6f47;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-arrow:hover {
+    background: #8b6f47;
+    color: #fff;
+    border-color: #8b6f47;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 111, 71, 0.25);
+}
+
+.tab-arrow:active {
+    transform: translateY(0);
+}
+
+.tab-arrow svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Bible translation picker */
+.version-select {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.version-select-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #8b7355;
+    white-space: nowrap;
+}
+
+.version-select-dropdown {
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 14px 16px;
+    border: 2px solid #e8dcc8;
+    border-radius: 12px;
+    background: #fff;
+    color: #4a3f2a;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    max-width: 170px;
+}
+
+.version-select-dropdown:hover {
+    border-color: #d4b896;
+}
+
+.version-select-dropdown:focus {
+    outline: none;
+    border-color: #8b6f47;
+    box-shadow: 0 0 0 3px rgba(139, 111, 71, 0.15);
+}
+
 .search-box {
     display: flex;
     gap: 10px;
@@ -2399,8 +2484,9 @@ body {
         max-width: 100%;
     }
 
-    /* Hide desktop tabs on mobile when bottom nav is visible */
-    .tabs {
+    /* Hide desktop tabs (and their nav arrows) on mobile; bottom nav takes over */
+    .tabs,
+    .tab-nav {
         display: none !important;
     }
 
