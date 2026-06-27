@@ -983,12 +983,67 @@ const stripHtml = (html) => {
 };
 
 const BIBLE_VERSIONS = {
+  // Public-domain / open-licensed versions — available on any API.Bible key.
   KJV: {
     id: "de4e12af7f28f599-02",
     name: "King James Version",
     abbreviation: "KJV",
   },
+  BSB: {
+    id: "bba9f40183526463-01",
+    name: "Berean Standard Bible",
+    abbreviation: "BSB",
+  },
+  WEB: {
+    id: "9879dbb7cfe39e4d-01",
+    name: "World English Bible",
+    abbreviation: "WEB",
+  },
+  ASV: {
+    id: "06125adad2d5898a-01",
+    name: "American Standard Version",
+    abbreviation: "ASV",
+  },
+  // Copyrighted versions — only resolve if enabled on your key (see config.js).
+  ESV: {
+    id: AppConfig?.bibleApi?.versionIds?.ESV || "",
+    name: "English Standard Version",
+    abbreviation: "ESV",
+    requiresKey: true,
+  },
+  NIV: {
+    id: AppConfig?.bibleApi?.versionIds?.NIV || "",
+    name: "New International Version",
+    abbreviation: "NIV",
+    requiresKey: true,
+  },
 };
+
+// Versions shown in the picker, in display order.
+const BIBLE_VERSION_ORDER = ["KJV", "BSB", "WEB", "ASV", "ESV", "NIV"];
+
+// Primary navigation tabs, in left-to-right order. Used by the tab arrows.
+const TAB_ORDER = [
+  "search",
+  "verses",
+  "studies",
+  "quiz",
+  "practice",
+  "leaderboard",
+  "prayer",
+  "stats",
+];
+
+// Friendly error for a copyrighted version that isn't enabled on the current key.
+function versionAccessError(version) {
+  const err = new Error(
+    `${version.abbreviation} isn't available on this API key. Enable it in your ` +
+    `API.Bible dashboard (free plan allows up to 3 copyrighted translations) and ` +
+    `set its Bible ID in config.js, or pick another version.`
+  );
+  err.isVersionError = true;
+  return err;
+}
 
 // Bible API service using API.Bible
 const BibleAPI = {
@@ -1003,6 +1058,10 @@ const BibleAPI = {
       }
 
       const bibleId = version.id;
+      // Copyrighted version that hasn't been configured/enabled on this key.
+      if (!bibleId) {
+        throw versionAccessError(version);
+      }
 
       // API.Bible expects passages in format like "JHN.3.16" or "PSA.23"
       // Convert user input like "John 3:16" to API format
@@ -1015,6 +1074,12 @@ const BibleAPI = {
           "api-key": this.API_KEY,
         },
       });
+
+      // Access denied means the version isn't enabled on this key — surface a
+      // clear message instead of falling back to a search that will also fail.
+      if (response.status === 401 || response.status === 403) {
+        throw versionAccessError(version);
+      }
 
       if (!response.ok) {
         // Fallback to search if direct passage lookup fails
@@ -1034,6 +1099,10 @@ const BibleAPI = {
       };
     } catch (error) {
       console.error("API.Bible error:", error);
+      // Preserve actionable version-access messages verbatim.
+      if (error.isVersionError) {
+        throw error;
+      }
       throw new Error(
         `Unable to fetch verse. ${
           error.message || "Please check the reference and try again."
@@ -1050,6 +1119,9 @@ const BibleAPI = {
       }
 
       const bibleId = version.id;
+      if (!bibleId) {
+        throw versionAccessError(version);
+      }
       const url = `https://api.scripture.api.bible/v1/bibles/${bibleId}/search?query=${encodeURIComponent(
         reference
       )}&limit=1`;
@@ -1060,6 +1132,9 @@ const BibleAPI = {
         },
       });
 
+      if (response.status === 401 || response.status === 403) {
+        throw versionAccessError(version);
+      }
       if (!response.ok) throw new Error("Verse not found");
 
       const data = await response.json();
@@ -1094,6 +1169,9 @@ const BibleAPI = {
       };
     } catch (error) {
       console.error("Search error:", error);
+      if (error.isVersionError) {
+        throw error;
+      }
       throw new Error(
         "Unable to fetch verse. Please check the reference and try again."
       );
@@ -1596,10 +1674,40 @@ function MobileBottomNav({ activeTab, setActiveTab }) {
   );
 }
 
+// Reusable Bible translation picker. Selection is global (used by search,
+// studies, and additional references) so all fetches honor the same version.
+function VersionSelect({ selectedVersion, setSelectedVersion, label = "Translation" }) {
+  return (
+    <label className="version-select" title="Choose Bible translation">
+      {label && <span className="version-select-label">{label}</span>}
+      <select
+        className="version-select-dropdown"
+        aria-label="Bible translation"
+        value={selectedVersion}
+        onChange={(e) => {
+          setSelectedVersion(e.target.value);
+          SoundEffects.playClick();
+        }}
+      >
+        {BIBLE_VERSION_ORDER.map((key) => {
+          const v = BIBLE_VERSIONS[key];
+          if (!v) return null;
+          return (
+            <option key={key} value={key}>
+              {v.abbreviation} — {v.name}
+            </option>
+          );
+        })}
+      </select>
+    </label>
+  );
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("search");
+  const [selectedVersion, setSelectedVersion] = useState("KJV");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentVerse, setCurrentVerse] = useState(null);
   const [searchVerses, setSearchVerses] = useState([]); // Parsed verses for search tab
@@ -1996,7 +2104,7 @@ function App() {
     setError("");
     setAddSuccess(false);
     try {
-      const verse = await BibleAPI.fetchVerse(searchQuery, "KJV");
+      const verse = await BibleAPI.fetchVerse(searchQuery, selectedVersion);
       setCurrentVerse(verse);
 
       const parsedVerses = parseVersesFromContent(
@@ -2536,7 +2644,7 @@ function App() {
 
     try {
       // Fetch the passage - this will get a range if specified (e.g., "John 3:16-21")
-      const verseData = await BibleAPI.fetchVerse(studyReference, "KJV");
+      const verseData = await BibleAPI.fetchVerse(studyReference, selectedVersion);
 
       // Parse the content into individual verses using the proper parser
       const parsedVerses = parseVersesFromContent(
@@ -3385,7 +3493,7 @@ function App() {
     setError("");
 
     try {
-      const verseData = await BibleAPI.fetchVerse(additionalReferenceInput, "KJV");
+      const verseData = await BibleAPI.fetchVerse(additionalReferenceInput, selectedVersion);
 
       // Parse into verses using the proper parser
       const parsedVerses = parseVersesFromContent(
@@ -3502,6 +3610,35 @@ function App() {
       setLeaderboardLoading(false);
     }
   };
+
+  // ============================
+  // TAB NAVIGATION
+  // ============================
+  // Switch tabs while honoring any per-tab side effects (e.g. leaderboard load).
+  const goToTab = (tabId) => {
+    setActiveTab(tabId);
+    if (tabId === "leaderboard") {
+      loadLeaderboard();
+    }
+    SoundEffects.playClick();
+  };
+
+  // Step to the previous/next tab; wraps around the ends.
+  const navigateTab = (direction) => {
+    const currentIndex = TAB_ORDER.indexOf(activeTab);
+    if (currentIndex === -1) return;
+    const nextIndex =
+      (currentIndex + direction + TAB_ORDER.length) % TAB_ORDER.length;
+    goToTab(TAB_ORDER[nextIndex]);
+  };
+
+  // Keep the active tab visible in the scrollable tab bar.
+  useEffect(() => {
+    const activeEl = document.querySelector(".tabs .tab.active");
+    if (activeEl && activeEl.scrollIntoView) {
+      activeEl.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    }
+  }, [activeTab]);
 
   // ============================
   // QUIZ SYSTEM
@@ -3659,7 +3796,7 @@ function App() {
     setError("");
 
     try {
-      const verseData = await BibleAPI.fetchVerse(`${book.name} 1`, "KJV");
+      const verseData = await BibleAPI.fetchVerse(`${book.name} 1`, selectedVersion);
       const parsedVerses = parseVersesFromContent(
         verseData.rawContent || verseData.text,
         verseData.reference
@@ -3692,7 +3829,7 @@ function App() {
 
     try {
       const ref = `${selectedBook.name} ${newChapter}`;
-      const verseData = await BibleAPI.fetchVerse(ref, "KJV");
+      const verseData = await BibleAPI.fetchVerse(ref, selectedVersion);
       const parsedVerses = parseVersesFromContent(
         verseData.rawContent || verseData.text,
         verseData.reference
@@ -3786,6 +3923,15 @@ function App() {
       </div>
 
       <div className="card">
+        <div className="tab-nav">
+          <button
+            className="tab-arrow"
+            onClick={() => navigateTab(-1)}
+            aria-label="Previous tab"
+            title="Previous tab"
+          >
+            <Icons.ChevronLeft />
+          </button>
         <div className="tabs">
           <button
             className={`tab ${activeTab === "search" ? "active" : ""}`}
@@ -3839,6 +3985,15 @@ function App() {
             <Icons.BarChart /> Progress
           </button>
         </div>
+          <button
+            className="tab-arrow"
+            onClick={() => navigateTab(1)}
+            aria-label="Next tab"
+            title="Next tab"
+          >
+            <Icons.ChevronRight />
+          </button>
+        </div>
 
         {activeTab === "search" && (
           <div>
@@ -3850,6 +4005,10 @@ function App() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+              />
+              <VersionSelect
+                selectedVersion={selectedVersion}
+                setSelectedVersion={setSelectedVersion}
               />
               <button className="btn btn-primary" onClick={handleSearch}>
                 <Icons.Search /> Search
@@ -5420,6 +5579,10 @@ function App() {
                         e.key === "Enter" && fetchStudyPassage()
                       }
                     />
+                    <VersionSelect
+                      selectedVersion={selectedVersion}
+                      setSelectedVersion={setSelectedVersion}
+                    />
                     <button
                       className="btn btn-primary"
                       onClick={fetchStudyPassage}
@@ -6236,6 +6399,10 @@ function App() {
                       onKeyPress={(e) =>
                         e.key === "Enter" && fetchStudyPassage()
                       }
+                    />
+                    <VersionSelect
+                      selectedVersion={selectedVersion}
+                      setSelectedVersion={setSelectedVersion}
                     />
                     <button
                       className="btn btn-primary"

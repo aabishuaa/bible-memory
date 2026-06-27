@@ -21,5 +21,22 @@ const AppConfig = {
   // Sign up for a free account and create an API key
   bibleApi: {
     apiKey: "d7c354dc4347405810e82c9f352f159e",
+
+    // Bible IDs for COPYRIGHTED translations (ESV, NIV, etc.).
+    //
+    // Unlike public-domain versions (KJV, ASV, WEB, BSB) which work on any key,
+    // copyrighted translations must be explicitly enabled on YOUR API.Bible key:
+    //   1. Sign in at https://scripture.api.bible/ and open your application.
+    //   2. On the free "Starter" plan you may add up to 3 copyrighted, non-commercial
+    //      translations (e.g. ESV, NIV) to your key.
+    //   3. Copy each translation's exact Bible ID from your dashboard and paste it below.
+    //
+    // The IDs seeded here are the commonly-published ones, but they will ONLY resolve
+    // if your key has been granted access to that translation. If a version is not
+    // enabled, the app falls back gracefully and shows an actionable message.
+    versionIds: {
+      ESV: "f421fe261da7624f-01", // English Standard Version - verify/enable on your key
+      NIV: "71c6eab17ae5b667-01", // New International Version - verify/enable on your key
+    },
   },
 };
